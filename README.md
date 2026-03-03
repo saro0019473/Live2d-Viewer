@@ -28,7 +28,7 @@ A lightweight Live2D model viewer built with Vue 3 + PIXI.js + Cubism SDK. Easil
 
 ```bash
 # 1. Clone the repository
-git clone <repository-url>
+git clone https://github.com/saro0019473/Live2d-Viewer.git
 cd Live2d-Viewer
 
 # 2. Install dependencies
