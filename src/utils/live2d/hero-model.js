@@ -561,14 +561,14 @@ export class HeroModel {
       }
 
       const expressions =
-        this.model.internalModel.settings.getExpressionDefinitions();
+        this.model.internalModel.settings.expressions || this.cachedExpressions;
       if (!expressions || !expressions[index]) {
         this.logger.warn(`⚠️ Invalid expression index: ${index}`);
         return false;
       }
 
-      this.model.internalModel.expression(expressions[index].name);
-      this.logger.log(`😊 Expression played: ${expressions[index].name}`);
+      this.model.expression(index);
+      this.logger.log(`😊 Expression played: ${expressions[index].Name}`);
       return true;
     } catch (error) {
       this.logger.error("❌ Failed to play expression:", error);
