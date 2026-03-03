@@ -5,7 +5,7 @@
                 <n-button
                     quaternary
                     circle
-                    @click="loadModelData"
+                    @click="refreshAll"
                     :loading="loading"
                 >
                     <template #icon>
@@ -22,83 +22,541 @@
             </template>
 
             <div class="model-selector-vertical-layout">
-                <!-- Add Custom Model Form -->
-                <n-card
-                    class="add-model-card"
-                    title="Add Custom Model"
-                    size="small"
-                >
-                    <n-form label-placement="top">
-                        <n-grid :cols="1" :y-gap="16">
-                            <!-- Model URL Selection & Input -->
-                            <n-grid-item>
-                                <n-form-item label="Model URL">
-                                    <n-select
-                                        v-model:value="modelUrl"
-                                        placeholder="Select from list or manually enter model URL"
-                                        :options="localModelOptions"
-                                        :disabled="addingModel"
-                                        clearable
-                                        filterable
-                                        tag
-                                    >
-                                        <template #empty>
-                                            <div
-                                                style="
-                                                    text-align: center;
-                                                    padding: 16px;
-                                                "
-                                            >
-                                                <n-text depth="3"
-                                                    >No local model index
-                                                    found</n-text
+                <!-- Tabs: Local / Model Library -->
+                <n-tabs v-model:value="activeTab" type="segment" animated>
+                    <!-- Local Tab -->
+                    <n-tab-pane name="local" tab="Local">
+                        <div class="tab-content">
+                            <!-- Manual URL Input -->
+                            <n-card
+                                class="add-model-card"
+                                size="small"
+                                :bordered="true"
+                            >
+                                <n-space vertical :size="10">
+                                    <n-text depth="3" style="font-size: 12px">
+                                        Enter a model URL or select from local
+                                        index:
+                                    </n-text>
+                                    <n-input-group>
+                                        <n-select
+                                            v-model:value="modelUrl"
+                                            placeholder="Select or type model URL..."
+                                            :options="localModelOptions"
+                                            :disabled="addingModel"
+                                            clearable
+                                            filterable
+                                            tag
+                                            style="flex: 1"
+                                        >
+                                            <template #empty>
+                                                <div
+                                                    style="
+                                                        text-align: center;
+                                                        padding: 12px;
+                                                    "
                                                 >
-                                                <br />
-                                                <n-text
-                                                    depth="3"
-                                                    style="font-size: 12px"
-                                                >
-                                                    Run script to generate index
-                                                    or enter URL manually
-                                                </n-text>
-                                            </div>
-                                        </template>
-                                    </n-select>
-                                </n-form-item>
-                            </n-grid-item>
+                                                    <n-text depth="3"
+                                                        >No local model index
+                                                        found</n-text
+                                                    >
+                                                    <br />
+                                                    <n-text
+                                                        depth="3"
+                                                        style="font-size: 11px"
+                                                    >
+                                                        Type a URL manually
+                                                    </n-text>
+                                                </div>
+                                            </template>
+                                        </n-select>
+                                        <n-button
+                                            type="primary"
+                                            @click="addModel"
+                                            :disabled="!modelUrl || addingModel"
+                                            :loading="addingModel"
+                                        >
+                                            <template #icon>
+                                                <n-icon>
+                                                    <svg viewBox="0 0 24 24">
+                                                        <path
+                                                            fill="currentColor"
+                                                            d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                                                        />
+                                                    </svg>
+                                                </n-icon>
+                                            </template>
+                                            Load
+                                        </n-button>
+                                    </n-input-group>
+                                </n-space>
+                            </n-card>
 
-                            <!-- Add Button -->
-                            <n-grid-item>
-                                <n-button
-                                    type="primary"
-                                    block
-                                    @click="addModel"
-                                    :disabled="!modelUrl || addingModel"
-                                    :loading="addingModel"
-                                    class="add-model-btn"
+                            <!-- Local Models List -->
+                            <div
+                                v-if="localModelOptions.length > 0"
+                                class="section-header"
+                            >
+                                <n-text strong style="font-size: 13px"
+                                    >Available Local Models</n-text
                                 >
-                                    <template #icon>
-                                        <n-icon>
+                                <n-tag size="small" type="info">
+                                    {{ localModelOptions.length }}
+                                </n-tag>
+                            </div>
+                            <div
+                                v-if="localModelOptions.length > 0"
+                                class="models-grid"
+                            >
+                                <div
+                                    v-for="opt in localModelOptions"
+                                    :key="opt.value?.path || opt.value"
+                                    class="model-grid-item"
+                                    @click="loadLocalModel(opt)"
+                                >
+                                    <div class="model-grid-icon">
+                                        <n-icon
+                                            size="24"
+                                            color="var(--n-primary-color)"
+                                        >
                                             <svg viewBox="0 0 24 24">
                                                 <path
                                                     fill="currentColor"
-                                                    d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                                                />
+                                            </svg>
+                                        </n-icon>
+                                    </div>
+                                    <div class="model-grid-info">
+                                        <div class="model-grid-name">
+                                            {{ opt.label }}
+                                        </div>
+                                        <div class="model-grid-path">
+                                            {{
+                                                opt.value?.path ||
+                                                opt.value ||
+                                                ""
+                                            }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <n-empty
+                                v-else-if="!loading"
+                                description="No local models found"
+                                style="margin: 24px 0"
+                            >
+                                <template #extra>
+                                    <n-text depth="3" style="font-size: 12px">
+                                        Place models in
+                                        <n-text code>public/models/</n-text>
+                                        and run generate script, or enter URL
+                                        above
+                                    </n-text>
+                                </template>
+                            </n-empty>
+                        </div>
+                    </n-tab-pane>
+
+                    <!-- Model Library Tab -->
+                    <n-tab-pane name="library" tab="Model Library">
+                        <div class="tab-content">
+                            <!-- Search bar -->
+                            <n-input
+                                v-model:value="librarySearch"
+                                placeholder="Search character or costume..."
+                                clearable
+                                style="margin-bottom: 10px"
+                            >
+                                <template #prefix>
+                                    <n-icon size="16">
+                                        <svg viewBox="0 0 24 24">
+                                            <path
+                                                fill="currentColor"
+                                                d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"
+                                            />
+                                        </svg>
+                                    </n-icon>
+                                </template>
+                                <template #suffix>
+                                    <n-text
+                                        v-if="librarySearch"
+                                        depth="3"
+                                        style="font-size: 11px"
+                                    >
+                                        {{ flatFilteredModels.length }} results
+                                    </n-text>
+                                </template>
+                            </n-input>
+
+                            <!-- Loading state -->
+                            <div
+                                v-if="libraryLoading"
+                                style="text-align: center; padding: 40px 0"
+                            >
+                                <n-spin size="medium">
+                                    <template #description
+                                        >Loading model library...</template
+                                    >
+                                </n-spin>
+                            </div>
+
+                            <!-- View toggle -->
+                            <div
+                                v-else-if="masterData.length > 0"
+                                class="library-controls"
+                            >
+                                <n-space justify="space-between" align="center">
+                                    <n-text depth="3" style="font-size: 12px">
+                                        {{ totalModelCount }} models available
+                                    </n-text>
+                                    <n-button-group size="tiny">
+                                        <n-button
+                                            :type="
+                                                libraryView === 'flat'
+                                                    ? 'primary'
+                                                    : 'default'
+                                            "
+                                            @click="libraryView = 'flat'"
+                                            :ghost="libraryView !== 'flat'"
+                                        >
+                                            <template #icon>
+                                                <n-icon size="14">
+                                                    <svg viewBox="0 0 24 24">
+                                                        <path
+                                                            fill="currentColor"
+                                                            d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"
+                                                        />
+                                                    </svg>
+                                                </n-icon>
+                                            </template>
+                                            List
+                                        </n-button>
+                                        <n-button
+                                            :type="
+                                                libraryView === 'grouped'
+                                                    ? 'primary'
+                                                    : 'default'
+                                            "
+                                            @click="libraryView = 'grouped'"
+                                            :ghost="libraryView !== 'grouped'"
+                                        >
+                                            <template #icon>
+                                                <n-icon size="14">
+                                                    <svg viewBox="0 0 24 24">
+                                                        <path
+                                                            fill="currentColor"
+                                                            d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"
+                                                        />
+                                                    </svg>
+                                                </n-icon>
+                                            </template>
+                                            Grouped
+                                        </n-button>
+                                    </n-button-group>
+                                </n-space>
+                            </div>
+
+                            <!-- FLAT LIST VIEW: All models as a scrollable list -->
+                            <div
+                                v-if="
+                                    !libraryLoading &&
+                                    masterData.length > 0 &&
+                                    libraryView === 'flat'
+                                "
+                                class="library-scroll"
+                            >
+                                <div
+                                    v-if="flatFilteredModels.length > 0"
+                                    class="models-flat-list"
+                                >
+                                    <div
+                                        v-for="item in flatFilteredModels"
+                                        :key="item.costume.path"
+                                        class="model-flat-item"
+                                        :class="{
+                                            'model-flat-loading':
+                                                loadingLibraryModel ===
+                                                item.costume.path,
+                                        }"
+                                        @click="
+                                            loadLibraryModel(
+                                                item.game,
+                                                item.char,
+                                                item.costume,
+                                            )
+                                        "
+                                    >
+                                        <div class="model-flat-icon">
+                                            <n-icon
+                                                size="18"
+                                                color="var(--n-primary-color)"
+                                            >
+                                                <svg viewBox="0 0 24 24">
+                                                    <path
+                                                        fill="currentColor"
+                                                        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                                                    />
+                                                </svg>
+                                            </n-icon>
+                                        </div>
+                                        <div class="model-flat-info">
+                                            <div class="model-flat-name">
+                                                {{ item.char.charName }}
+                                                <n-text
+                                                    depth="3"
+                                                    style="font-size: 11px"
+                                                    >—
+                                                    {{
+                                                        item.costume.costumeName
+                                                    }}</n-text
+                                                >
+                                            </div>
+                                            <div class="model-flat-meta">
+                                                <n-tag
+                                                    size="tiny"
+                                                    :bordered="false"
+                                                    type="info"
+                                                >
+                                                    {{ item.game.gameName }}
+                                                </n-tag>
+                                                <span
+                                                    class="model-flat-path-text"
+                                                >
+                                                    {{
+                                                        extractFileName(
+                                                            item.costume.path,
+                                                        )
+                                                    }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="model-flat-action">
+                                            <n-button
+                                                size="tiny"
+                                                type="primary"
+                                                ghost
+                                                :loading="
+                                                    loadingLibraryModel ===
+                                                    item.costume.path
+                                                "
+                                                @click.stop="
+                                                    loadLibraryModel(
+                                                        item.game,
+                                                        item.char,
+                                                        item.costume,
+                                                    )
+                                                "
+                                            >
+                                                Load
+                                            </n-button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- No results after search -->
+                                <n-empty
+                                    v-else-if="librarySearch"
+                                    description="No matching models found"
+                                    style="margin: 24px 0"
+                                >
+                                    <template #icon>
+                                        <n-icon
+                                            size="36"
+                                            color="var(--n-text-color-disabled)"
+                                        >
+                                            <svg viewBox="0 0 24 24">
+                                                <path
+                                                    fill="currentColor"
+                                                    d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"
                                                 />
                                             </svg>
                                         </n-icon>
                                     </template>
-                                    {{
-                                        addingModel
-                                            ? "Loading..."
-                                            : "Load Model"
-                                    }}
-                                </n-button>
-                            </n-grid-item>
-                        </n-grid>
-                    </n-form>
-                </n-card>
+                                </n-empty>
+                            </div>
 
-                <!-- Loaded Models List -->
+                            <!-- GROUPED VIEW: Collapse by game → character → costume -->
+                            <div
+                                v-if="
+                                    !libraryLoading &&
+                                    masterData.length > 0 &&
+                                    libraryView === 'grouped'
+                                "
+                                class="library-scroll"
+                            >
+                                <n-collapse
+                                    :default-expanded-names="
+                                        filteredMasterData.length === 1
+                                            ? [filteredMasterData[0].gameName]
+                                            : []
+                                    "
+                                    accordion
+                                >
+                                    <n-collapse-item
+                                        v-for="game in filteredMasterData"
+                                        :key="game.gameId"
+                                        :title="game.gameName"
+                                        :name="game.gameName"
+                                    >
+                                        <template #header-extra>
+                                            <n-tag size="small" type="info">
+                                                {{ game.character.length }}
+                                                characters
+                                            </n-tag>
+                                        </template>
+
+                                        <!-- Characters -->
+                                        <n-collapse accordion>
+                                            <n-collapse-item
+                                                v-for="char in game.character"
+                                                :key="char.charId"
+                                                :title="char.charName"
+                                                :name="char.charId"
+                                            >
+                                                <template #header-extra>
+                                                    <n-tag
+                                                        size="tiny"
+                                                        type="success"
+                                                    >
+                                                        {{ char.live2d.length }}
+                                                        skin(s)
+                                                    </n-tag>
+                                                </template>
+
+                                                <!-- Costumes -->
+                                                <n-list hoverable clickable>
+                                                    <n-list-item
+                                                        v-for="costume in char.live2d"
+                                                        :key="costume.costumeId"
+                                                        @click="
+                                                            loadLibraryModel(
+                                                                game,
+                                                                char,
+                                                                costume,
+                                                            )
+                                                        "
+                                                        class="costume-item"
+                                                        :class="{
+                                                            'costume-loading':
+                                                                loadingLibraryModel ===
+                                                                costume.path,
+                                                        }"
+                                                    >
+                                                        <template #prefix>
+                                                            <n-icon
+                                                                size="16"
+                                                                color="var(--n-primary-color)"
+                                                            >
+                                                                <svg
+                                                                    viewBox="0 0 24 24"
+                                                                >
+                                                                    <path
+                                                                        fill="currentColor"
+                                                                        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                                                                    />
+                                                                </svg>
+                                                            </n-icon>
+                                                        </template>
+                                                        <n-thing>
+                                                            <template #header>
+                                                                <span
+                                                                    style="
+                                                                        font-size: 13px;
+                                                                    "
+                                                                    >{{
+                                                                        costume.costumeName
+                                                                    }}</span
+                                                                >
+                                                            </template>
+                                                            <template
+                                                                #description
+                                                            >
+                                                                <span
+                                                                    class="costume-path-text"
+                                                                >
+                                                                    {{
+                                                                        extractFileName(
+                                                                            costume.path,
+                                                                        )
+                                                                    }}
+                                                                </span>
+                                                            </template>
+                                                        </n-thing>
+                                                        <template #suffix>
+                                                            <n-button
+                                                                size="tiny"
+                                                                type="primary"
+                                                                :loading="
+                                                                    loadingLibraryModel ===
+                                                                    costume.path
+                                                                "
+                                                                @click.stop="
+                                                                    loadLibraryModel(
+                                                                        game,
+                                                                        char,
+                                                                        costume,
+                                                                    )
+                                                                "
+                                                            >
+                                                                Load
+                                                            </n-button>
+                                                        </template>
+                                                    </n-list-item>
+                                                </n-list>
+                                            </n-collapse-item>
+                                        </n-collapse>
+                                    </n-collapse-item>
+                                </n-collapse>
+
+                                <!-- No results after search -->
+                                <n-empty
+                                    v-if="
+                                        filteredMasterData.length === 0 &&
+                                        librarySearch
+                                    "
+                                    description="No matching models found"
+                                    style="margin: 24px 0"
+                                >
+                                    <template #icon>
+                                        <n-icon
+                                            size="36"
+                                            color="var(--n-text-color-disabled)"
+                                        >
+                                            <svg viewBox="0 0 24 24">
+                                                <path
+                                                    fill="currentColor"
+                                                    d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"
+                                                />
+                                            </svg>
+                                        </n-icon>
+                                    </template>
+                                </n-empty>
+                            </div>
+
+                            <!-- Empty / Failed state -->
+                            <n-empty
+                                v-if="
+                                    !libraryLoading && masterData.length === 0
+                                "
+                                description="Failed to load model library"
+                                style="margin: 40px 0"
+                            >
+                                <template #extra>
+                                    <n-button
+                                        size="small"
+                                        @click="loadMasterData"
+                                    >
+                                        Retry
+                                    </n-button>
+                                </template>
+                            </n-empty>
+                        </div>
+                    </n-tab-pane>
+                </n-tabs>
+
+                <!-- Loaded Models List (always visible below tabs) -->
                 <n-card
                     class="loaded-models-card"
                     title="Loaded Models"
@@ -112,7 +570,7 @@
                                     color: var(--n-text-color-disabled);
                                 "
                             >
-                                {{ loadedModels.length }} model(s) total
+                                {{ loadedModels.length }} model(s) loaded
                             </span>
                         </n-space>
                     </template>
@@ -200,14 +658,14 @@
                                     </div>
                                 </template>
                                 <div class="model-path">
-                                    Model path: {{ model.url }}
+                                    {{ model.url }}
                                 </div>
                             </n-card>
                         </n-space>
                         <n-empty
                             v-else
                             description="No loaded models"
-                            style="margin: 40px 0"
+                            style="margin: 24px 0"
                         >
                             <template #icon>
                                 <n-icon
@@ -259,6 +717,16 @@ export default {
         const localModelOptions = ref([]);
         const presetModels = ref([]);
 
+        // Tab state
+        const activeTab = ref("library");
+
+        // Model Library state
+        const masterData = ref([]);
+        const libraryLoading = ref(false);
+        const librarySearch = ref("");
+        const loadingLibraryModel = ref(null);
+        const libraryView = ref("flat"); // 'flat' or 'grouped'
+
         // Model sequence counter
         const modelCounter = ref(1);
 
@@ -281,21 +749,265 @@ export default {
             return Array.from(live2dStore.modelDataMap?.values() || []);
         });
 
+        // Total model count from library
+        const totalModelCount = computed(() => {
+            let count = 0;
+            masterData.value.forEach((game) => {
+                game.character.forEach((char) => {
+                    count += char.live2d.length;
+                });
+            });
+            return count;
+        });
+
+        // Flat list of all models from library (for flat view)
+        const flatFilteredModels = computed(() => {
+            const search = librarySearch.value.trim().toLowerCase();
+            const results = [];
+
+            masterData.value.forEach((game) => {
+                game.character.forEach((char) => {
+                    char.live2d.forEach((costume) => {
+                        if (!search) {
+                            results.push({ game, char, costume });
+                        } else {
+                            const matchChar = char.charName
+                                .toLowerCase()
+                                .includes(search);
+                            const matchCostume = costume.costumeName
+                                .toLowerCase()
+                                .includes(search);
+                            const matchPath = costume.path
+                                .toLowerCase()
+                                .includes(search);
+                            const matchGame = game.gameName
+                                .toLowerCase()
+                                .includes(search);
+                            if (
+                                matchChar ||
+                                matchCostume ||
+                                matchPath ||
+                                matchGame
+                            ) {
+                                results.push({ game, char, costume });
+                            }
+                        }
+                    });
+                });
+            });
+
+            return results;
+        });
+
+        // Filtered master data based on search (for grouped view)
+        const filteredMasterData = computed(() => {
+            const search = librarySearch.value.trim().toLowerCase();
+            if (!search) return masterData.value;
+
+            return masterData.value
+                .map((game) => {
+                    const filteredChars = game.character
+                        .map((char) => {
+                            const charMatch = char.charName
+                                .toLowerCase()
+                                .includes(search);
+                            const filteredCostumes = char.live2d.filter(
+                                (costume) =>
+                                    charMatch ||
+                                    costume.costumeName
+                                        .toLowerCase()
+                                        .includes(search) ||
+                                    costume.path.toLowerCase().includes(search),
+                            );
+                            if (filteredCostumes.length > 0) {
+                                return {
+                                    ...char,
+                                    live2d: charMatch
+                                        ? char.live2d
+                                        : filteredCostumes,
+                                };
+                            }
+                            return null;
+                        })
+                        .filter(Boolean);
+
+                    if (filteredChars.length > 0) {
+                        return { ...game, character: filteredChars };
+                    }
+                    return null;
+                })
+                .filter(Boolean);
+        });
+
+        // Extract file name from URL for display
+        const extractFileName = (url) => {
+            if (!url) return "";
+            try {
+                const parts = url.split("/");
+                return parts[parts.length - 1];
+            } catch {
+                return url;
+            }
+        };
+
+        // Load master data from live2dMaster.json
+        const loadMasterData = async () => {
+            libraryLoading.value = true;
+            try {
+                const response = await fetch("/models/live2dMaster.json");
+                if (!response.ok) {
+                    throw new Error(
+                        `HTTP ${response.status}: ${response.statusText}`,
+                    );
+                }
+                const data = await response.json();
+                if (data && Array.isArray(data.Master)) {
+                    masterData.value = data.Master;
+                    console.log(
+                        "[ModelSelector] Model library loaded:",
+                        masterData.value.length,
+                        "games,",
+                        totalModelCount.value,
+                        "total models",
+                    );
+                } else {
+                    console.warn("[ModelSelector] Invalid master data format");
+                    masterData.value = [];
+                }
+            } catch (error) {
+                console.error(
+                    "[ModelSelector] Failed to load model library:",
+                    error,
+                );
+                masterData.value = [];
+            } finally {
+                libraryLoading.value = false;
+            }
+        };
+
+        // Load a model from the library
+        const loadLibraryModel = async (game, char, costume) => {
+            if (loadingLibraryModel.value) return;
+
+            loadingLibraryModel.value = costume.path;
+            try {
+                const modelName = `${char.charName} - ${costume.costumeName}`;
+
+                // Check if already loaded
+                const existingModel = Array.from(
+                    live2dStore?.modelDataMap?.values() || [],
+                ).find((model) => model.url === costume.path);
+                if (existingModel) {
+                    message.warning(`Model "${modelName}" is already loaded`);
+                    return;
+                }
+
+                const modelData = {
+                    id: generateModelId(),
+                    url: costume.path,
+                    name: modelName,
+                    description: `${game.gameName} - ${char.charName} - ${costume.costumeName}`,
+                };
+
+                console.log(
+                    "[ModelSelector] Loading library model:",
+                    modelData,
+                );
+
+                if (live2dStore?.setModelData) {
+                    live2dStore.setModelData(modelData);
+                }
+                emit("model-selected", modelData);
+
+                message.success(`Model "${modelName}" loaded successfully`);
+            } catch (error) {
+                console.error(
+                    "[ModelSelector] Failed to load library model:",
+                    error,
+                );
+                message.error("Failed to load model: " + error.message);
+            } finally {
+                loadingLibraryModel.value = null;
+            }
+        };
+
+        // Load a local model from the grid
+        const loadLocalModel = async (opt) => {
+            if (addingModel.value) return;
+
+            const modelDataRaw = opt.value;
+            addingModel.value = true;
+            try {
+                let modelData;
+                if (typeof modelDataRaw === "object") {
+                    modelData = {
+                        id: generateModelId(),
+                        url: modelDataRaw.path,
+                        name:
+                            modelDataRaw.name ||
+                            getModelDisplayName(modelDataRaw),
+                        description: modelDataRaw.description || "",
+                        thumbnail: modelDataRaw.thumbnail || "",
+                        version: modelDataRaw.version || "",
+                        author: modelDataRaw.author || "",
+                        tags: modelDataRaw.tags || [],
+                    };
+                } else {
+                    modelData = {
+                        id: generateModelId(),
+                        url: modelDataRaw,
+                        name: getModelDisplayName(modelDataRaw),
+                    };
+                }
+
+                const existingModel = Array.from(
+                    live2dStore?.modelDataMap?.values() || [],
+                ).find((model) => model.url === modelData.url);
+                if (existingModel) {
+                    message.warning(
+                        `Model "${modelData.name}" is already loaded`,
+                    );
+                    return;
+                }
+
+                console.log("[ModelSelector] Loading local model:", modelData);
+                if (live2dStore?.setModelData) {
+                    live2dStore.setModelData(modelData);
+                }
+                emit("model-selected", modelData);
+                message.success(
+                    `Model "${modelData.name}" loaded successfully`,
+                );
+            } catch (error) {
+                console.error(
+                    "[ModelSelector] Failed to load local model:",
+                    error,
+                );
+                message.error("Failed to load model");
+            } finally {
+                addingModel.value = false;
+            }
+        };
+
         // Methods
+        const refreshAll = async () => {
+            await loadModelData();
+            await loadLocalModelsIndex();
+            await loadMasterData();
+        };
+
         const loadModelData = async () => {
             loading.value = true;
             presetModels.value = [];
             try {
-                console.log(
-                    "🔄 [ModelSelector] Checking server preset models...",
-                );
+                console.log("[ModelSelector] Checking server preset models...");
 
                 if (webSocketStore.isConnected) {
                     const serverModelInfo =
                         webSocketStore.configs.character?.model_info;
                     if (serverModelInfo) {
                         console.log(
-                            "📦 [ModelSelector] Found loaded server model info:",
+                            "[ModelSelector] Found loaded server model info:",
                             serverModelInfo,
                         );
                         const serverModel = {
@@ -306,22 +1018,20 @@ export default {
                             ...serverModelInfo,
                         };
                         presetModels.value = [serverModel];
-                        console.log(
-                            "✅ [ModelSelector] Server preset model set.",
-                        );
+                        console.log("[ModelSelector] Server preset model set.");
                     } else {
                         console.log(
-                            "ℹ️ [ModelSelector] Connected but no model info in current config.",
+                            "[ModelSelector] Connected but no model info in current config.",
                         );
                     }
                 } else {
                     console.log(
-                        "ℹ️ [ModelSelector] Not connected to server, skipping preset models.",
+                        "[ModelSelector] Not connected to server, skipping preset models.",
                     );
                 }
             } catch (error) {
                 console.error(
-                    "❌ [ModelSelector] Failed to load model data:",
+                    "[ModelSelector] Failed to load model data:",
                     error,
                 );
                 message.error("Failed to load model data: " + error.message);
@@ -336,7 +1046,7 @@ export default {
 
             loadingPresetModel.value = model.id;
             try {
-                console.log("🔄 [ModelSelector] Loading preset model:", model);
+                console.log("[ModelSelector] Loading preset model:", model);
 
                 const modelData = {
                     id: model.id,
@@ -350,7 +1060,7 @@ export default {
                 );
             } catch (error) {
                 console.error(
-                    "❌ [ModelSelector] Failed to load preset model:",
+                    "[ModelSelector] Failed to load preset model:",
                     error,
                 );
                 message.error(`Failed to load model: ${error.message}`);
@@ -400,11 +1110,7 @@ export default {
                     return;
                 }
 
-                console.log(
-                    "➕ [ModelSelector] Adding custom model:",
-                    modelData,
-                    "(using sequential ID)",
-                );
+                console.log("[ModelSelector] Adding custom model:", modelData);
                 if (live2dStore?.setModelData) {
                     live2dStore.setModelData(modelData);
                 }
@@ -417,7 +1123,7 @@ export default {
                 modelUrl.value = "";
             } catch (error) {
                 console.error(
-                    "❌ [ModelSelector] Failed to add custom model:",
+                    "[ModelSelector] Failed to add custom model:",
                     error,
                 );
                 message.error("Failed to add custom model");
@@ -428,13 +1134,7 @@ export default {
 
         const removeModel = async (model) => {
             try {
-                console.log("🗑️ [ModelSelector] Removing model:", model);
-                console.log(
-                    "🗑️ [ModelSelector] Model URL type:",
-                    typeof model.url,
-                    "value:",
-                    model.url,
-                );
+                console.log("[ModelSelector] Removing model:", model);
 
                 // 1. Remove model from Live2DManager/PIXI scene
                 if (live2dStore?.manager) {
@@ -442,7 +1142,7 @@ export default {
                         live2dStore.manager.removeModel(model.id);
                     } catch (e) {
                         console.warn(
-                            "⚠️ [ModelSelector] manager.removeModel failed:",
+                            "[ModelSelector] manager.removeModel failed:",
                             e,
                         );
                     }
@@ -464,16 +1164,13 @@ export default {
                     `Model "${getModelDisplayName(model)}" has been removed`,
                 );
             } catch (error) {
-                console.error(
-                    "❌ [ModelSelector] Failed to remove model:",
-                    error,
-                );
+                console.error("[ModelSelector] Failed to remove model:", error);
                 message.error("Failed to remove model");
             }
         };
 
         const configureModel = (model) => {
-            console.log("⚙️ [ModelSelector] Configure model:", model);
+            console.log("[ModelSelector] Configure model:", model);
             emit("model-configure", model);
         };
 
@@ -504,14 +1201,14 @@ export default {
         // WebSocket event handler
         const handleModelConfigUpdate = (event) => {
             console.log(
-                "🔄 [ModelSelector] Received model config update:",
+                "[ModelSelector] Received model config update:",
                 event.detail,
             );
             const config = event.detail;
 
             if (config.model_info) {
                 console.log(
-                    "📦 [ModelSelector] Updating preset model info:",
+                    "[ModelSelector] Updating preset model info:",
                     config.model_info,
                 );
 
@@ -522,17 +1219,16 @@ export default {
                     url: config.model_info.url,
                     ...config.model_info,
                 };
-                console.log("Final serverModel:", serverModel);
                 presetModels.value = [serverModel];
 
                 console.log(
-                    "✅ [ModelSelector] Preset model list updated:",
+                    "[ModelSelector] Preset model list updated:",
                     presetModels.value,
                 );
             } else {
                 presetModels.value = [];
                 console.log(
-                    "ℹ️ [ModelSelector] New config has no model info, clearing preset model list.",
+                    "[ModelSelector] New config has no model info, clearing preset model list.",
                 );
             }
         };
@@ -550,19 +1246,20 @@ export default {
                 if (Array.isArray(models)) {
                     localModelOptions.value = models
                         .map((model) => ({
-                            label: `${model.folder}/${model.name}`,
+                            label:
+                                model.name || `${model.folder}/${model.file}`,
                             value: model,
                         }))
                         .sort((a, b) => a.label.localeCompare(b.label));
                     console.log(
-                        "✅ [ModelSelector] Local model index loaded successfully:",
+                        "[ModelSelector] Local model index loaded successfully:",
                         localModelOptions.value.length,
                         "models",
                     );
                 }
             } catch (error) {
                 console.error(
-                    "❌ [ModelSelector] Failed to load local model index:",
+                    "[ModelSelector] Failed to load local model index:",
                     error,
                 );
             }
@@ -577,7 +1274,7 @@ export default {
                 } else {
                     presetModels.value = [];
                     console.log(
-                        "🔌 [ModelSelector] Disconnected, clearing preset models.",
+                        "[ModelSelector] Disconnected, clearing preset models.",
                     );
                 }
             },
@@ -590,6 +1287,7 @@ export default {
             );
             loadModelData();
             loadLocalModelsIndex();
+            loadMasterData();
         });
 
         onUnmounted(() => {
@@ -600,6 +1298,7 @@ export default {
         });
 
         return {
+            activeTab,
             modelUrl,
             presetModels,
             localModelOptions,
@@ -608,8 +1307,23 @@ export default {
             addingModel,
             loadingPresetModel,
 
+            // Library
+            masterData,
+            libraryLoading,
+            librarySearch,
+            libraryView,
+            loadingLibraryModel,
+            filteredMasterData,
+            flatFilteredModels,
+            totalModelCount,
+
+            refreshAll,
             loadModelData,
             loadPresetModel,
+            loadMasterData,
+            loadLibraryModel,
+            loadLocalModel,
+            extractFileName,
             addModel,
             removeModel,
             configureModel,
@@ -621,61 +1335,257 @@ export default {
 </script>
 
 <style scoped>
+/*
+ * CRITICAL: Force Naive UI internal containers to show content.
+ *
+ * Problem: multiple layers of n-card__content and n-tabs-pane-wrapper
+ * all set overflow:hidden (some via inline styles), which clips the
+ * model list even though the DOM nodes exist.
+ *
+ * Solution: override overflow on every wrapper between the scrollable-content
+ * parent and the actual tab content, but keep scroll on specific containers.
+ */
+
+/* ---- Outermost card wrapping this entire component ---- */
+/* The root n-card "Model Selection" — its content must not clip */
+:deep(> .n-card > .n-card__content) {
+    overflow: visible !important;
+    height: auto !important;
+}
+
+/* ---- n-tabs internal wrappers ---- */
+:deep(.n-tabs-pane-wrapper) {
+    overflow: visible !important;
+    height: auto !important;
+}
+
+:deep(.n-tab-pane) {
+    overflow: visible !important;
+    height: auto !important;
+}
+
+/* ---- Nested n-card inside each tab (add-model-card, library-card, etc.) ---- */
+:deep(.tab-content .n-card > .n-card__content) {
+    overflow: visible !important;
+    height: auto !important;
+}
+
+/* ---- loaded-models-card: this ONE card needs its own scroll ---- */
+:deep(.loaded-models-card > .n-card__content) {
+    overflow-y: auto !important;
+    height: auto !important;
+    max-height: 38vh;
+}
+
+/* ---- Explicit scroll containers ---- */
+.library-scroll {
+    overflow-y: auto !important;
+}
+
+.models-list-scroll {
+    overflow-y: auto !important;
+}
+
 .model-selector-vertical-layout {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 12px;
     width: 100%;
-    overflow-y: auto;
-    max-height: calc(100vh - 120px);
+    /* do NOT set overflow or max-height here; let the parent scroll */
 }
 
-/* Preset models styles */
-.preset-models-card {
-    border-radius: 18px;
+.tab-content {
+    padding-top: 8px;
+    display: block !important;
 }
 
-.preset-models-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 5px;
-    max-height: 300px;
-    overflow-y: auto;
-    padding: 1px;
+/* Section header */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 12px 0 8px 0;
+    padding: 0 2px;
 }
 
-.preset-model-card {
+/* Local models grid */
+.models-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.model-grid-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--n-border-color);
     cursor: pointer;
     transition: all 0.2s ease;
-    border: 1px solid var(--n-border-color);
+    background: var(--n-color);
 }
 
-.preset-model-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.model-grid-item:hover {
     border-color: var(--n-primary-color);
+    background: var(--n-primary-color-hover);
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.preset-model-card.loading {
-    opacity: 0.7;
+.model-grid-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--n-primary-color-suppl);
+    opacity: 0.8;
+}
+
+.model-grid-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.model-grid-name {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.model-grid-path {
+    font-size: 11px;
+    color: var(--n-text-color-disabled);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+/* Library controls */
+.library-controls {
+    margin-bottom: 10px;
+}
+
+/* Library styles */
+.library-scroll {
+    max-height: 55vh;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+}
+
+.library-scroll::-webkit-scrollbar {
+    width: 5px;
+}
+
+.library-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.library-scroll::-webkit-scrollbar-thumb {
+    background: var(--n-scrollbar-color);
+    border-radius: 3px;
+}
+
+/* Flat list styles */
+.models-flat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.model-flat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.model-flat-item:hover {
+    background: var(--n-primary-color-hover);
+    border-color: var(--n-border-color);
+    transform: translateX(2px);
+}
+
+.model-flat-item.model-flat-loading {
+    opacity: 0.5;
     pointer-events: none;
 }
 
-.preset-model-header {
+.model-flat-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--n-primary-color-suppl);
+    opacity: 0.7;
 }
 
-.preset-model-name {
-    font-weight: 600;
-    font-size: 14px;
+.model-flat-info {
+    flex: 1;
+    min-width: 0;
 }
 
-.preset-model-url {
+.model-flat-name {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.model-flat-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.model-flat-path-text {
+    font-size: 10px;
+    color: var(--n-text-color-disabled);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.model-flat-action {
+    flex-shrink: 0;
+}
+
+/* Grouped view costume items */
+.costume-item {
+    transition: all 0.15s ease;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.costume-item:hover {
+    transform: translateX(4px);
+}
+
+.costume-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.costume-path-text {
     font-size: 11px;
     color: var(--n-text-color-disabled);
-    margin-top: 4px;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 1;
@@ -684,23 +1594,17 @@ export default {
     text-overflow: ellipsis;
 }
 
-/* Custom model add styles */
+/* Add model card */
 .add-model-card {
-    border-radius: 18px;
-}
-
-.add-model-btn {
-    min-width: 120px;
-    width: 100%;
-    border-radius: 8px;
+    border-radius: 10px;
 }
 
 /* Loaded models styles */
 .loaded-models-card {
-    border-radius: 18px;
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
-    max-height: 48vh;
+    max-height: 40vh;
 }
 
 .models-list-scroll {
@@ -715,7 +1619,7 @@ export default {
         box-shadow 0.2s,
         border-color 0.2s;
     border-left: 4px solid var(--n-primary-color);
-    border-radius: 12px;
+    border-radius: 10px;
 }
 
 .model-card-actions {
@@ -729,15 +1633,21 @@ export default {
     opacity: 1;
 }
 
+.model-path {
+    font-size: 11px;
+    color: var(--n-text-color-disabled);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Responsive design */
 @media (max-width: 900px) {
     .model-selector-vertical-layout {
-        gap: 5px;
-    }
-
-    .preset-models-grid {
-        grid-template-columns: 1fr;
-        max-height: 250px;
+        gap: 8px;
     }
 
     .add-model-card,
@@ -750,31 +1660,24 @@ export default {
         max-height: none;
     }
 
-    .add-model-btn {
-        min-width: 0;
+    .library-scroll {
+        max-height: 40vh;
+    }
+
+    .model-flat-item {
+        padding: 6px 8px;
     }
 }
 
 @media (max-width: 600px) {
-    .preset-models-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
+    .model-flat-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
     }
 
-    .preset-model-url {
-        -webkit-line-clamp: 3;
-        line-clamp: 3;
+    .library-scroll {
+        max-height: 35vh;
     }
-}
-
-.model-path {
-    font-size: 12px;
-    color: var(--n-text-color-disabled);
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 </style>

@@ -138,43 +138,72 @@
 
 .settings-content {
     flex: 1;
+    height: 100%;
     max-height: 100vh;
-    overflow-y: auto;
+    overflow: hidden;
     transition: all 0.3s ease;
-}
-
-.settings-content :deep(.n-card__content) {
-    height: 100vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .content-card {
+    flex: 1;
+    min-height: 0;
     height: 100%;
     border-radius: 12px;
     box-shadow: var(--app-shadow);
     border: 1px solid var(--n-border-color);
-    overflow-y: auto;
     transition: var(--app-transition);
     color: var(--n-text-color);
-}
-
-.content-card :deep(.n-card__content) {
-    height: calc(100% - 48px);
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
-    padding: 0;
-    padding: 2px;
 }
 
-/* 可滚动内容区域 */
+/*
+ * Target ONLY the content-card's own n-card__content (direct child).
+ * Use !important to override Naive UI inline styles that set overflow:hidden.
+ */
+.content-card > .n-card__content {
+    flex: 1 !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    padding: 2px !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Scrollable content area — this is the single scroll container */
 .scrollable-content {
-    height: 100%;
-    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto !important;
     overflow-x: hidden;
     padding: 1px;
     scrollbar-width: thin;
     scrollbar-color: var(--n-scrollbar-color) transparent;
     transition: var(--app-transition);
     color: var(--n-text-color);
+}
+
+/*
+ * CRITICAL: Prevent nested n-card__content (inside ModelSelector, tabs, etc.)
+ * from inheriting restrictive overflow/height from global styles.
+ * These nested cards must flow naturally.
+ */
+.scrollable-content .n-card__content {
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* Ensure Naive UI n-tabs pane wrappers don't clip content */
+.scrollable-content .n-tabs-pane-wrapper {
+    overflow: visible !important;
+}
+
+.scrollable-content .n-tab-pane {
+    overflow: visible !important;
 }
 
 .scrollable-content::-webkit-scrollbar {
@@ -383,18 +412,18 @@
     z-index: 1000 !important;
 }
 
-/* 分割器样式优化 */
-:deep(.n-split-pane-divider) {
+/* Split divider style */
+.n-split-pane-divider {
     background: var(--n-border-color);
     transition: all 0.3s ease;
     width: 4px;
 }
 
-:deep(.n-split-pane-divider:hover) {
+.n-split-pane-divider:hover {
     background: var(--n-primary-color);
 }
 
-:deep(.n-split-pane-divider::after) {
+.n-split-pane-divider::after {
     content: "";
     position: absolute;
     top: 50%;
@@ -407,75 +436,13 @@
     transition: opacity 0.3s ease;
 }
 
-:deep(.n-split-pane-divider:hover::after) {
+.n-split-pane-divider:hover::after {
     opacity: 1;
 }
 
-/* 卡片样式优化 */
-:deep(.n-card) {
-    transition: var(--app-transition);
-    border: 1px solid var(--n-border-color);
-}
-
-:deep(.n-card:hover) {
-    box-shadow: var(--app-shadow-hover);
-    transform: translateY(-1px);
-}
-
-:deep(.n-card__header) {
+/* Card header border */
+.n-card__header {
     border-bottom: 1px solid var(--n-border-color);
-}
-
-/* 菜单样式优化 */
-:deep(.n-menu-item) {
-    border-radius: 8px;
-    margin: 2px 0;
-    transition: var(--app-transition);
-}
-
-:deep(.n-menu-item:hover) {
-    background: var(--n-primary-color-hover);
-    transform: translateX(2px);
-}
-
-:deep(.n-menu-item.n-menu-item--selected) {
-    background: var(--n-primary-color);
-    color: white;
-    box-shadow: 0 2px 8px rgba(var(--n-primary-color-rgb), 0.3);
-}
-
-/* 按钮样式优化 */
-:deep(.n-button) {
-    transition: var(--app-transition);
-}
-
-:deep(.n-button:hover) {
-    transform: translateY(-1px);
-}
-
-/* 输入框样式优化 */
-:deep(.n-input) {
-    transition: var(--app-transition);
-}
-
-:deep(.n-input:focus-within) {
-    box-shadow: 0 0 0 2px rgba(var(--n-primary-color-rgb), 0.2);
-}
-
-/* 标签样式优化 */
-:deep(.n-tag) {
-    transition: var(--app-transition);
-}
-
-/* 滚动条样式优化 */
-:deep(.n-scrollbar-rail) {
-    transition: var(--app-transition);
-}
-
-/* 分割线样式优化 */
-:deep(.n-divider) {
-    border-color: var(--n-border-color);
-    transition: var(--app-transition);
 }
 
 /* 添加桌宠模式样式 */
