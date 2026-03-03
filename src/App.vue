@@ -4,50 +4,6 @@
             <n-dialog-provider>
                 <div id="app" class="app-container">
                     <div class="modern-layout">
-                        <!-- Top Navigation Bar -->
-                        <div class="top-nav">
-                            <n-space justify="space-between" align="center">
-                                <div class="brand-section">
-                                    <h2
-                                        class="brand-title"
-                                        :class="{
-                                            'dark-theme': themeStore.isDark,
-                                        }"
-                                    >
-                                        <span class="brand-icon">🎭</span>
-                                        Live2D Viewer
-                                    </h2>
-                                </div>
-                                <n-space>
-                                    <n-button
-                                        @click="toggleSettingsPanel"
-                                        circle
-                                        quaternary
-                                        class="settings-toggle"
-                                        :class="{
-                                            collapsed: settingsCollapsed,
-                                        }"
-                                        aria-label="Toggle settings panel"
-                                    >
-                                        <template #icon>
-                                            <span>{{
-                                                settingsCollapsed ? "📋" : "📝"
-                                            }}</span>
-                                        </template>
-                                    </n-button>
-                                    <n-button
-                                        @click="toggleTheme"
-                                        circle
-                                        quaternary
-                                        class="theme-toggle"
-                                        :aria-label="`Switch to ${themeStore.isDark ? 'light' : 'dark'} theme`"
-                                    >
-                                        {{ getThemeIcon() }}
-                                    </n-button>
-                                </n-space>
-                            </n-space>
-                        </div>
-
                         <!-- Main Content Area -->
                         <div class="main-content">
                             <NSplit
@@ -68,24 +24,100 @@
                                         }"
                                     >
                                         <div
-                                            class="settings-sidebar"
+                                            class="settings-sidebar icon-only-sidebar"
                                             v-show="!settingsCollapsed"
                                         >
-                                            <n-card
-                                                title="Menu"
-                                                size="small"
-                                                class="menu-card"
-                                                :bordered="false"
-                                            >
-                                                <n-menu
-                                                    :value="activeKey"
-                                                    :options="menuOptions"
-                                                    @update:value="
-                                                        handleMenuSelect
+                                            <div class="icon-menu">
+                                                <n-tooltip
+                                                    v-for="option in menuOptions"
+                                                    :key="option.key"
+                                                    placement="right"
+                                                >
+                                                    <template #trigger>
+                                                        <n-button
+                                                            :type="
+                                                                activeKey ===
+                                                                option.key
+                                                                    ? 'primary'
+                                                                    : 'tertiary'
+                                                            "
+                                                            size="large"
+                                                            circle
+                                                            @click="
+                                                                handleMenuSelect(
+                                                                    option.key,
+                                                                )
+                                                            "
+                                                            class="icon-menu-item"
+                                                        >
+                                                            <component
+                                                                :is="
+                                                                    option.icon
+                                                                "
+                                                            />
+                                                        </n-button>
+                                                    </template>
+                                                    <span>{{
+                                                        option.label
+                                                    }}</span>
+                                                </n-tooltip>
+
+                                                <!-- Divider -->
+                                                <div
+                                                    style="
+                                                        width: 28px;
+                                                        height: 1px;
+                                                        background: var(
+                                                            --n-border-color
+                                                        );
+                                                        margin: 4px 0;
                                                     "
-                                                    class="main-menu"
-                                                />
-                                            </n-card>
+                                                ></div>
+
+                                                <!-- Toggle Settings Panel -->
+                                                <n-tooltip placement="right">
+                                                    <template #trigger>
+                                                        <n-button
+                                                            :type="
+                                                                settingsCollapsed
+                                                                    ? 'primary'
+                                                                    : 'tertiary'
+                                                            "
+                                                            size="large"
+                                                            circle
+                                                            @click="
+                                                                toggleSettingsPanel
+                                                            "
+                                                            class="icon-menu-item"
+                                                        >
+                                                            <span>{{
+                                                                settingsCollapsed
+                                                                    ? "📋"
+                                                                    : "📝"
+                                                            }}</span>
+                                                        </n-button>
+                                                    </template>
+                                                    <span>Toggle Panel</span>
+                                                </n-tooltip>
+
+                                                <!-- Toggle Theme -->
+                                                <n-tooltip placement="right">
+                                                    <template #trigger>
+                                                        <n-button
+                                                            type="tertiary"
+                                                            size="large"
+                                                            circle
+                                                            @click="toggleTheme"
+                                                            class="icon-menu-item"
+                                                        >
+                                                            <span>{{
+                                                                getThemeIcon()
+                                                            }}</span>
+                                                        </n-button>
+                                                    </template>
+                                                    <span>Toggle Theme</span>
+                                                </n-tooltip>
+                                            </div>
                                         </div>
 
                                         <!-- Collapsed Sidebar -->
@@ -128,6 +160,62 @@
                                                     <span>{{
                                                         option.label
                                                     }}</span>
+                                                </n-tooltip>
+
+                                                <!-- Divider -->
+                                                <div
+                                                    style="
+                                                        width: 28px;
+                                                        height: 1px;
+                                                        background: var(
+                                                            --n-border-color
+                                                        );
+                                                        margin: 4px 0;
+                                                    "
+                                                ></div>
+
+                                                <!-- Toggle Settings Panel -->
+                                                <n-tooltip placement="right">
+                                                    <template #trigger>
+                                                        <n-button
+                                                            :type="
+                                                                settingsCollapsed
+                                                                    ? 'primary'
+                                                                    : 'tertiary'
+                                                            "
+                                                            size="small"
+                                                            circle
+                                                            @click="
+                                                                toggleSettingsPanel
+                                                            "
+                                                            class="collapsed-menu-item"
+                                                        >
+                                                            <span>{{
+                                                                settingsCollapsed
+                                                                    ? "📋"
+                                                                    : "📝"
+                                                            }}</span>
+                                                        </n-button>
+                                                    </template>
+                                                    <span>Toggle Panel</span>
+                                                </n-tooltip>
+
+                                                <!-- Toggle Theme -->
+                                                <n-tooltip placement="right">
+                                                    <template #trigger>
+                                                        <n-button
+                                                            type="tertiary"
+                                                            size="small"
+                                                            circle
+                                                            @click="toggleTheme"
+                                                            class="collapsed-menu-item"
+                                                        >
+                                                            <span>{{
+                                                                getThemeIcon()
+                                                            }}</span>
+                                                        </n-button>
+                                                    </template>
+                                                    <span>Toggle Theme</span>
                                                 </n-tooltip>
                                             </div>
                                         </div>
