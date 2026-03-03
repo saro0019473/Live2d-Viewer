@@ -98,7 +98,10 @@
                                         :default-value="0.2"
                                         :show-min-max-input="false"
                                         :show-reset-button="true"
-                                        :updater="currentHeroModel?.setScale"
+                                        :updater="
+                                            (val) =>
+                                                currentHeroModel?.setScale(val)
+                                        "
                                         @update:model-value="
                                             (val) => (modelSettings.scale = val)
                                         "
@@ -114,7 +117,10 @@
                                         :step="1"
                                         :default-value="0"
                                         :show-min-max-input="false"
-                                        :updater="currentHeroModel?.setAngle"
+                                        :updater="
+                                            (val) =>
+                                                currentHeroModel?.setAngle(val)
+                                        "
                                         @update:model-value="
                                             (val) =>
                                                 (modelSettings.rotation = val)
@@ -131,7 +137,10 @@
                                                 modelSettings.breathing
                                             "
                                             :updater="
-                                                currentHeroModel?.setBreathing
+                                                (val) =>
+                                                    currentHeroModel?.setBreathing(
+                                                        val,
+                                                    )
                                             "
                                             @update:model-value="
                                                 (val) =>
@@ -146,7 +155,10 @@
                                                 modelSettings.eyeBlinking
                                             "
                                             :updater="
-                                                currentHeroModel?.setEyeBlinking
+                                                (val) =>
+                                                    currentHeroModel?.setEyeBlinking(
+                                                        val,
+                                                    )
                                             "
                                             @update:model-value="
                                                 (val) =>
@@ -161,7 +173,10 @@
                                                 modelSettings.interactive
                                             "
                                             :updater="
-                                                currentHeroModel?.setInteractive
+                                                (val) =>
+                                                    currentHeroModel?.setInteractive(
+                                                        val,
+                                                    )
                                             "
                                             @update:model-value="
                                                 (val) =>
@@ -177,9 +192,14 @@
                                                 modelSettings.enableAudio
                                             "
                                             :updater="
-                                                (val) =>
-                                                    (currentHeroModel.model.audioEnabled =
-                                                        val)
+                                                (val) => {
+                                                    if (
+                                                        currentHeroModel?.model
+                                                    ) {
+                                                        currentHeroModel.model.audioEnabled =
+                                                            val;
+                                                    }
+                                                }
                                             "
                                             @update:model-value="
                                                 (val) =>
@@ -195,9 +215,14 @@
                                                 modelSettings.showText
                                             "
                                             :updater="
-                                                (val) =>
-                                                    (currentHeroModel.model.textEnabled =
-                                                        val)
+                                                (val) => {
+                                                    if (
+                                                        currentHeroModel?.model
+                                                    ) {
+                                                        currentHeroModel.model.textEnabled =
+                                                            val;
+                                                    }
+                                                }
                                             "
                                             @update:model-value="
                                                 (val) =>
