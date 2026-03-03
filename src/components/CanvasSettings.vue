@@ -1,5 +1,5 @@
 <template>
-    <n-card title="画布设置" :bordered="false">
+    <n-card title="Canvas Settings" :bordered="false">
     <n-scrollbar class="scrollable-content">
     <template #header-extra>
       <n-space>
@@ -22,8 +22,8 @@
 
     <n-spin :show="loading">
       <n-space vertical size="large">
-        <!-- 显示设置 -->
-        <n-card title="显示设置" size="small" :segmented="{ content: true }">
+        <!-- Display Settings -->
+        <n-card title="Display Settings" size="small" :segmented="{ content: true }">
           <template #header-extra>
             <n-icon size="18" color="var(--n-info-color)">
               <svg viewBox="0 0 24 24">
@@ -34,16 +34,16 @@
 
           <n-form :model="settings" label-placement="left" label-width="100">
             <n-space vertical size="large">
-              <!-- 画布尺寸 -->
+              <!-- Canvas Size -->
               <n-collapse>
-                <n-collapse-item title="画布尺寸" name="canvas-size">
+                <n-collapse-item title="Canvas Size" name="canvas-size">
                   <template #header-extra>
                     <n-tag size="tiny" type="info">{{ settings.canvasWidth }}×{{ settings.canvasHeight }}</n-tag>
                   </template>
 
                   <n-space vertical size="medium">
-                    <!-- 画布宽度 -->
-                    <n-form-item label="宽度">
+                    <!-- Canvas Width -->
+                    <n-form-item label="Width">
                       <n-space vertical style="width: 100%;">
                         <n-slider
                           :value="settings.canvasWidth"
@@ -65,8 +65,8 @@
                       </n-space>
                     </n-form-item>
 
-                    <!-- 画布高度 -->
-                    <n-form-item label="高度">
+                    <!-- Canvas Height -->
+                    <n-form-item label="Height">
                       <n-space vertical style="width: 100%;">
                         <n-slider
                           :value="settings.canvasHeight"
@@ -93,11 +93,11 @@
 
               <n-divider style="margin: 8px 0;" />
 
-              <!-- 其他设置 -->
+              <!-- Other Settings -->
               <n-space vertical size="medium">
-                <n-space juCanvasSettings.vuestify="space-between" align="center">
+                <n-space justify="space-between" align="center">
                   <n-space align="center">
-                    <span style="font-weight: 500;">自适应窗口</span>
+                    <span style="font-weight: 500;">Auto Resize</span>
                     <n-tooltip>
                       <template #trigger>
                         <n-icon size="14" color="var(--n-text-color-disabled)">
@@ -106,22 +106,22 @@
                           </svg>
                         </n-icon>
                       </template>
-                      <span>画布尺寸自动适应窗口大小变化</span>
+                      <span>Canvas size automatically adapts to window size changes</span>
                     </n-tooltip>
                   </n-space>
                   <n-switch
                     :value="settings.autoResize"
                     @update:value="(value) => { settings.autoResize = value; updateSettings(); }"
                   >
-                    <template #checked>开启</template>
-                    <template #unchecked>关闭</template>
+                    <template #checked>On</template>
+                    <template #unchecked>Off</template>
                   </n-switch>
                 </n-space>
 
-                <!-- 前景遮罩设置 -->
+                <!-- Foreground Mask Settings -->
                 <n-space justify="space-between" align="center">
                   <n-space align="center">
-                    <span style="font-weight: 500;">显示前景遮罩</span>
+                    <span style="font-weight: 500;">Show Foreground Mask</span>
                     <n-tooltip>
                       <template #trigger>
                         <n-icon size="14" color="var(--n-text-color-disabled)">
@@ -130,18 +130,18 @@
                           </svg>
                         </n-icon>
                       </template>
-                      <span>为每个模型添加可调节透明度的前景遮罩</span>
+                      <span>Add an adjustable opacity foreground mask for each model</span>
                     </n-tooltip>
                   </n-space>
                   <n-switch
                     :value="settings.showForeground"
                     @update:value="(value) => { settings.showForeground = value; updateSettings(); }"
                   >
-                    <template #checked>开启</template>
-                    <template #unchecked>关闭</template>
+                    <template #checked>On</template>
+                    <template #unchecked>Off</template>
                   </n-switch>
                 </n-space>
-                <n-form-item label="前景遮罩透明度" v-if="settings.showForeground">
+                <n-form-item label="Mask Opacity" v-if="settings.showForeground">
                   <n-slider
                     :value="settings.foregroundAlpha"
                     :min="0"
@@ -165,8 +165,8 @@
           </n-form>
         </n-card>
 
-        <!-- Live2D 控制设置 -->
-        <n-card title="Live2D 控制" size="small" :segmented="{ content: true }">
+        <!-- Live2D Control Settings -->
+        <n-card title="Live2D Controls" size="small" :segmented="{ content: true }">
           <template #header-extra>
             <n-icon size="18" color="var(--n-warning-color)">
               <svg viewBox="0 0 24 24">
@@ -177,16 +177,16 @@
 
           <n-form :model="settings" label-placement="left" label-width="100">
             <n-space vertical size="large">
-              <!-- 性能设置 -->
+              <!-- Performance Settings -->
               <n-collapse>
-                <n-collapse-item title="性能优化" name="performance">
+                <n-collapse-item title="Performance" name="performance">
                   <template #header-extra>
                     <n-tag size="tiny" type="info">{{ settings.maxFPS }} FPS</n-tag>
                   </template>
 
                   <n-space vertical size="medium">
-                    <!-- 最大FPS -->
-                    <n-form-item label="最大FPS">
+                    <!-- Max FPS -->
+                    <n-form-item label="Max FPS">
                       <n-select
                         :value="settings.maxFPS"
                         @update:value="(value) => { settings.maxFPS = value; updateLive2DSettings(); }"
@@ -198,23 +198,23 @@
                       />
                     </n-form-item>
 
-                    <!-- 纹理垃圾回收 -->
-                    <n-form-item label="纹理回收">
+                    <!-- Texture Garbage Collection -->
+                    <n-form-item label="Texture GC">
                       <n-select
                         :value="settings.textureGCMode"
                         @update:value="(value) => { settings.textureGCMode = value; updateLive2DSettings(); }"
                         :options="[
-                          { label: '激进模式', value: 'aggressive' },
-                          { label: '自动模式', value: 'auto' },
-                          { label: '保守模式', value: 'conservative' }
+                          { label: 'Aggressive', value: 'aggressive' },
+                          { label: 'Auto', value: 'auto' },
+                          { label: 'Conservative', value: 'conservative' }
                         ]"
                       />
                     </n-form-item>
 
-                    <!-- 视锥剔除 -->
+                    <!-- Frustum Culling -->
                     <n-space justify="space-between" align="center">
                       <n-space align="center">
-                        <span style="font-weight: 500;">视锥剔除</span>
+                        <span style="font-weight: 500;">Frustum Culling</span>
                         <n-tooltip>
                           <template #trigger>
                             <n-icon size="14" color="var(--n-text-color-disabled)">
@@ -223,22 +223,22 @@
                               </svg>
                             </n-icon>
                           </template>
-                          <span>启用视锥剔除可以提高渲染性能</span>
+                          <span>Enabling frustum culling can improve rendering performance</span>
                         </n-tooltip>
                       </n-space>
                       <n-switch
                         :value="settings.enableCulling"
                         @update:value="(value) => { settings.enableCulling = value; updateLive2DSettings(); }"
                       >
-                        <template #checked>开启</template>
-                        <template #unchecked>关闭</template>
+                        <template #checked>On</template>
+                        <template #unchecked>Off</template>
                       </n-switch>
                     </n-space>
 
-                    <!-- 批处理 -->
+                    <!-- Batching -->
                     <n-space justify="space-between" align="center">
                       <n-space align="center">
-                        <span style="font-weight: 500;">批处理优化</span>
+                        <span style="font-weight: 500;">Batch Optimization</span>
                         <n-tooltip>
                           <template #trigger>
                             <n-icon size="14" color="var(--n-text-color-disabled)">
@@ -247,15 +247,15 @@
                               </svg>
                             </n-icon>
                           </template>
-                          <span>启用批处理可以减少绘制调用次数</span>
+                          <span>Enabling batching can reduce draw call count</span>
                         </n-tooltip>
                       </n-space>
                       <n-switch
                         :value="settings.enableBatching"
                         @update:value="(value) => { settings.enableBatching = value; updateLive2DSettings(); }"
                       >
-                        <template #checked>开启</template>
-                        <template #unchecked>关闭</template>
+                        <template #checked>On</template>
+                        <template #unchecked>Off</template>
                       </n-switch>
                     </n-space>
                   </n-space>
@@ -264,11 +264,11 @@
 
               <n-divider style="margin: 8px 0;" />
 
-              <!-- 模型控制 -->
+              <!-- Model Controls -->
               <n-space vertical size="medium">
-                <h4 style="margin: 0; font-size: 14px; color: var(--n-text-color-base);">模型控制</h4>
+                <h4 style="margin: 0; font-size: 14px; color: var(--n-text-color-base);">Model Controls</h4>
 
-                <!-- 控制按钮 -->
+                <!-- Control Buttons -->
                 <n-space>
                   <n-button @click="pauseRendering" size="small" :type="isPaused ? 'warning' : 'default'">
                     <template #icon>
@@ -281,20 +281,20 @@
                         </svg>
                       </n-icon>
                     </template>
-                    {{ isPaused ? '恢复渲染' : '暂停渲染' }}
+                    {{ isPaused ? 'Resume Rendering' : 'Pause Rendering' }}
                   </n-button>
                 </n-space>
 
-                <!-- 性能统计 -->
+                <!-- Performance Stats -->
                 <n-space vertical size="medium">
                   <n-space justify="space-between" align="center">
-                    <span style="font-weight: 500;">性能统计</span>
+                    <span style="font-weight: 500;">Performance Stats</span>
                     <n-switch
                       :value="settings.showStats"
                       @update:value="(value) => { settings.showStats = value; toggleStats(); }"
                     >
-                      <template #checked>显示</template>
-                      <template #unchecked>隐藏</template>
+                      <template #checked>Show</template>
+                      <template #unchecked>Hide</template>
                     </n-switch>
                   </n-space>
 
@@ -307,7 +307,7 @@
                         </n-tag>
                       </n-space>
                       <n-space justify="space-between">
-                        <span>模型数量:</span>
+                        <span>Model Count:</span>
                         <n-tag size="small" type="info">{{ stats.modelCount || 0 }}</n-tag>
                       </n-space>
                       <n-space justify="space-between">
@@ -315,7 +315,7 @@
                         <n-tag size="small" type="default">{{ stats.deltaTime?.toFixed(2) || 'N/A' }}</n-tag>
                       </n-space>
                       <n-space justify="space-between" v-if="stats.textureMemory">
-                        <span>纹理数量:</span>
+                        <span>Texture Count:</span>
                         <n-tag size="small" type="warning">{{ stats.textureMemory.count || 'N/A' }}</n-tag>
                       </n-space>
                     </n-space>
@@ -328,7 +328,7 @@
       </n-space>
     </n-spin>
 
-    <!-- 操作按钮 -->
+    <!-- Action Buttons -->
     <template #action>
       <n-space justify="space-between">
         <n-button @click="exportSettings" secondary>
@@ -339,7 +339,7 @@
               </svg>
             </n-icon>
           </template>
-          导出设置
+          Export Settings
         </n-button>
 
         <n-space>
@@ -351,7 +351,7 @@
                 </svg>
               </n-icon>
             </template>
-            重置
+            Reset
           </n-button>
 
           <n-button type="primary" @click="applySettings" :loading="applying">
@@ -362,7 +362,7 @@
                 </svg>
               </n-icon>
             </template>
-            应用设置
+            Apply Settings
           </n-button>
         </n-space>
       </n-space>
@@ -384,12 +384,12 @@ export default {
     const live2dStore = useLive2DStore()
     const message = useMessage()
 
-    // 状态管理
+    // State management
     const loading = ref(false)
     const resetting = ref(false)
     const applying = ref(false)
 
-    // 安全获取store设置的辅助函数
+    // Helper function to safely get store settings
     const getSafeSetting = (key, defaultValue) => {
       try {
         if (live2dStore?.settings && typeof live2dStore.settings === 'object') {
@@ -398,7 +398,7 @@ export default {
         }
         return defaultValue
       } catch (error) {
-        console.warn(`⚠️ [CanvasSettings] 获取设置 ${key} 失败:`, error)
+        console.warn(`⚠️ [CanvasSettings] Failed to get setting ${key}:`, error)
         return defaultValue
       }
     }
@@ -407,7 +407,7 @@ export default {
       canvasWidth: getSafeSetting('canvasWidth', 1200),
       canvasHeight: getSafeSetting('canvasHeight', 800),
       autoResize: getSafeSetting('autoResize', true),
-      // Live2D 性能设置
+      // Live2D performance settings
       maxFPS: getSafeSetting('maxFPS', 60),
       textureGCMode: getSafeSetting('textureGCMode', 'auto'),
       enableCulling: getSafeSetting('enableCulling', true),
@@ -417,12 +417,12 @@ export default {
       foregroundAlpha: getSafeSetting('foregroundAlpha', 0.0)
     })
 
-    // 默认设置备份
+    // Default settings backup
     const defaultSettings = {
       canvasWidth: 1200,
       canvasHeight: 800,
       autoResize: true,
-      // Live2D 性能设置默认值
+      // Live2D performance defaults
       maxFPS: 60,
       textureGCMode: 'auto',
       enableCulling: true,
@@ -432,30 +432,30 @@ export default {
       foregroundAlpha: 0.0
     }
 
-    // 性能统计数据
+    // Performance stats data
     const stats = ref({})
     const isPaused = ref(false)
     let statsInterval = null
 
-    // 方法
+    // Methods
     const updateSettings = () => {
       try {
-        // 验证设置对象
+        // Validate settings object
         if (!settings || typeof settings !== 'object') {
-          console.error('❌ [CanvasSettings] 无效的设置对象:', settings)
-          message.error('设置对象无效')
+          console.error('❌ [CanvasSettings] Invalid settings object:', settings)
+          message.error('Invalid settings object')
           return
         }
 
-        // 分别更新不同类型的设置
+        // Update different types of settings separately
         if (live2dStore?.manager) {
           try {
-            // 更新画布尺寸
+            // Update canvas size
             if (settings.canvasWidth && settings.canvasHeight) {
               live2dStore.manager.resize(Number(settings.canvasWidth), Number(settings.canvasHeight))
             }
 
-            // 更新性能设置
+            // Update performance settings
             live2dStore.manager.updatePerformanceSettings({
               maxFPS: settings.maxFPS,
               textureGCMode: settings.textureGCMode,
@@ -463,36 +463,36 @@ export default {
               enableBatching: settings.enableBatching
             })
 
-            console.log('✅ [CanvasSettings] 所有设置已更新:', {
+            console.log('✅ [CanvasSettings] All settings updated:', {
               canvasSize: `${settings.canvasWidth}x${settings.canvasHeight}`,
               autoResize: settings.autoResize,
               maxFPS: settings.maxFPS
             })
           } catch (error) {
-            console.error('❌ [CanvasSettings] 设置更新失败:', error)
-            message.error('设置更新失败')
+            console.error('❌ [CanvasSettings] Settings update failed:', error)
+            message.error('Settings update failed')
             return
           }
         } else {
-          console.warn('⚠️ [CanvasSettings] Live2D Manager 未初始化')
+          console.warn('⚠️ [CanvasSettings] Live2D Manager not initialized')
         }
 
       } catch (error) {
-        console.error('❌ [CanvasSettings] updateSettings执行失败:', error)
-        console.error('❌ [CanvasSettings] 错误堆栈:', error.stack)
-        message.error('设置更新失败')
+        console.error('❌ [CanvasSettings] updateSettings execution failed:', error)
+        console.error('❌ [CanvasSettings] Error stack:', error.stack)
+        message.error('Settings update failed')
       }
     }
 
-    // Live2D 相关方法
+    // Live2D related methods
     const updateLive2DSettings = () => {
       try {
         if (!live2dStore?.manager) {
-          console.warn('⚠️ [CanvasSettings] Live2D Manager 未初始化')
+          console.warn('⚠️ [CanvasSettings] Live2D Manager not initialized')
           return
         }
 
-        // 更新性能设置
+        // Update performance settings
         live2dStore.manager.updatePerformanceSettings({
           maxFPS: settings.maxFPS,
           textureGCMode: settings.textureGCMode,
@@ -500,10 +500,10 @@ export default {
           enableBatching: settings.enableBatching
         })
 
-        console.log('✅ [CanvasSettings] Live2D设置已更新')
+        console.log('✅ [CanvasSettings] Live2D settings updated')
       } catch (error) {
-        console.error('❌ [CanvasSettings] Live2D设置更新失败:', error)
-        message.error('Live2D设置更新失败')
+        console.error('❌ [CanvasSettings] Live2D settings update failed:', error)
+        message.error('Live2D settings update failed')
       }
     }
 
@@ -512,11 +512,11 @@ export default {
         if (live2dStore?.manager && typeof live2dStore.manager.setPaused === 'function') {
           isPaused.value = !isPaused.value
           live2dStore.manager.setPaused(isPaused.value)
-          message.success(isPaused.value ? '渲染已暂停' : '渲染已恢复')
+          message.success(isPaused.value ? 'Rendering paused' : 'Rendering resumed')
         }
       } catch (error) {
-        console.error('❌ [CanvasSettings] 暂停/恢复渲染失败:', error)
-        message.error('操作失败')
+        console.error('❌ [CanvasSettings] Pause/resume rendering failed:', error)
+        message.error('Operation failed')
       }
     }
 
@@ -543,7 +543,7 @@ export default {
             }
           }
         } catch (error) {
-          console.error('❌ [CanvasSettings] 获取性能统计失败:', error)
+          console.error('❌ [CanvasSettings] Failed to get performance stats:', error)
         }
       }, 1000)
     }
@@ -567,10 +567,10 @@ export default {
       try {
         Object.assign(settings, defaultSettings)
         updateSettings()
-        message.success('设置已重置为默认值')
+        message.success('Settings have been reset to defaults')
       } catch (error) {
-        console.error('❌ [CanvasSettings] 重置设置失败:', error)
-        message.error('重置设置失败')
+        console.error('❌ [CanvasSettings] Reset settings failed:', error)
+        message.error('Reset settings failed')
       } finally {
         resetting.value = false
       }
@@ -580,10 +580,10 @@ export default {
       applying.value = true
       try {
         updateSettings()
-        message.success('设置已应用')
+        message.success('Settings applied')
       } catch (error) {
-        console.error('❌ [CanvasSettings] 应用设置失败:', error)
-        message.error('应用设置失败')
+        console.error('❌ [CanvasSettings] Apply settings failed:', error)
+        message.error('Apply settings failed')
       } finally {
         applying.value = false
       }
@@ -591,7 +591,7 @@ export default {
 
     const exportSettings = () => {
       try {
-        // 创建安全的设置副本用于导出
+        // Create a safe settings copy for export
         const safeExportSettings = {
           canvasWidth: Number(settings.canvasWidth) || 1200,
           canvasHeight: Number(settings.canvasHeight) || 800,
@@ -608,60 +608,60 @@ export default {
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        message.success('设置已导出')
+        message.success('Settings exported')
       } catch (error) {
-        console.error('❌ [CanvasSettings] 导出设置失败:', error)
-        message.error('导出设置失败')
+        console.error('❌ [CanvasSettings] Export settings failed:', error)
+        message.error('Export settings failed')
       }
     }
 
     onMounted(() => {
       try {
-        console.log('🔄 [CanvasSettings] 组件已挂载')
+        console.log('🔄 [CanvasSettings] Component mounted')
 
-        // 等待一个tick确保所有依赖都已初始化
+        // Wait a tick to ensure all dependencies are initialized
         setTimeout(() => {
           try {
-            // 从store中获取现有设置
+            // Get existing settings from store
             if (live2dStore?.settings && typeof live2dStore.settings === 'object') {
-              // 安全地合并设置，只更新存在的属性
+              // Safely merge settings, only update existing properties
               Object.keys(settings).forEach(key => {
                 if (live2dStore.settings[key] !== undefined && live2dStore.settings[key] !== null) {
                   settings[key] = live2dStore.settings[key]
                 }
               })
             } else {
-              console.warn('⚠️ [CanvasSettings] Live2D store或settings未初始化，使用默认设置')
+              console.warn('⚠️ [CanvasSettings] Live2D store or settings not initialized, using defaults')
             }
 
-            // 初始化设置
+            // Initialize settings
             updateSettings()
 
-            // 初始化Live2D设置
+            // Initialize Live2D settings
             updateLive2DSettings()
 
-            // 如果启用了性能统计，开始更新
+            // If performance stats are enabled, start updating
             if (settings.showStats) {
               startStatsUpdate()
             }
           } catch (innerError) {
-            console.error('❌ [CanvasSettings] 延迟初始化失败:', innerError)
-            message.error('组件初始化失败')
+            console.error('❌ [CanvasSettings] Delayed initialization failed:', innerError)
+            message.error('Component initialization failed')
           }
         }, 100)
       } catch (error) {
-        console.error('❌ [CanvasSettings] 组件初始化失败:', error)
-        message.error('组件初始化失败')
+        console.error('❌ [CanvasSettings] Component initialization failed:', error)
+        message.error('Component initialization failed')
       }
     })
 
-    // 组件卸载时清理
+    // Cleanup on component unmount
     onUnmounted(() => {
       stopStatsUpdate()
     })
 
     return {
-      // 响应式数据
+      // Reactive data
       settings,
       loading,
       resetting,
@@ -669,7 +669,7 @@ export default {
       stats,
       isPaused,
 
-      // 方法
+      // Methods
       updateSettings,
       resetSettings,
       applySettings,
@@ -684,7 +684,7 @@ export default {
 </script>
 
 <style scoped>
-/* 自定义样式 */
+/* Custom styles */
 :deep(.n-card) {
   transition: all 0.3s ease;
 }
@@ -697,223 +697,5 @@ export default {
 :deep(.n-form-item-label) {
   font-weight: 500;
   font-size: 13px;
-}
-
-:deep(.n-slider) {
-  margin: 8px 0;
-}
-
-:deep(.n-input-number) {
-  transition: all 0.3s ease;
-}
-
-:deep(.n-switch) {
-  transition: all 0.3s ease;
-}
-
-:deep(.n-color-picker) {
-  width: 100%;
-}
-
-:deep(.n-collapse-item) {
-  margin-bottom: 8px;
-}
-
-:deep(.n-collapse-item__header) {
-  font-weight: 500;
-  padding: 12px 16px;
-}
-
-/* 预设颜色样式 */
-.preset-colors {
-  width: 100%;
-}
-
-:deep(.preset-color-button) {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-:deep(.preset-color-button:hover) {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-/* 工具提示样式 */
-:deep(.n-tooltip) {
-  max-width: 200px;
-}
-
-/* 表单样式 */
-:deep(.n-form-item) {
-  margin-bottom: 16px;
-}
-
-:deep(.n-form-item-label__text) {
-  font-size: 14px;
-  color: var(--n-text-color-base);
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  :deep(.n-space) {
-    gap: 8px !important;
-  }
-
-  :deep(.n-card) {
-    margin-bottom: 12px;
-  }
-
-  .preset-colors :deep(.n-space) {
-    justify-content: center;
-  }
-}
-
-/* 加载状态 */
-:deep(.n-spin-container) {
-  min-height: 200px;
-}
-
-/* 按钮样式 */
-:deep(.n-button) {
-  transition: all 0.3s ease;
-}
-
-:deep(.n-button:hover) {
-  transform: translateY(-1px);
-}
-
-/* 标签样式 */
-:deep(.n-tag) {
-  font-size: 11px;
-  margin: 2px;
-}
-
-/* 分割线样式 */
-:deep(.n-divider) {
-  margin: 16px 0;
-}
-
-/* 折叠面板样式 */
-:deep(.n-collapse) {
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-:deep(.n-collapse-item__content-wrapper) {
-  padding: 1px;
-}
-
-/* 颜色选择器样式 */
-:deep(.n-color-picker-trigger) {
-  width: 100%;
-  height: 40px;
-  border-radius: 6px;
-}
-
-/* 滑块样式 */
-:deep(.n-slider-rail) {
-  height: 6px;
-  border-radius: 3px;
-}
-
-:deep(.n-slider-handle) {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-}
-
-/* 输入框样式 */
-:deep(.n-input-number) {
-  border-radius: 6px;
-}
-
-/* 开关样式 */
-:deep(.n-switch) {
-  --n-rail-height: 22px;
-  --n-rail-width: 44px;
-  --n-button-width: 18px;
-  --n-button-height: 18px;
-}
-
-/* 性能统计面板样式 */
-.stats-panel {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 6px;
-  padding: 12px;
-  border: 1px solid var(--n-border-color);
-}
-
-.stats-panel :deep(.n-space) {
-  width: 100%;
-}
-
-.stats-panel :deep(.n-tag) {
-  font-family: 'Courier New', monospace;
-  font-weight: 500;
-}
-
-/* Live2D 控制卡片样式 */
-:deep(.n-card[title="Live2D 控制"]) {
-  border: 1px solid var(--n-warning-color-suppl);
-}
-
-:deep(.n-card[title="Live2D 控制"] .n-card-header) {
-  background: linear-gradient(135deg, var(--n-warning-color-suppl), transparent);
-}
-
-/* 控制按钮组样式 */
-:deep(.n-button[type="warning"]) {
-  background: var(--n-warning-color);
-  border-color: var(--n-warning-color);
-}
-
-:deep(.n-button[type="warning"]:hover) {
-  background: var(--n-warning-color-hover);
-  border-color: var(--n-warning-color-hover);
-}
-
-/* 折叠面板增强样式 */
-:deep(.n-collapse-item[name="wheel-zoom"] .n-collapse-item__header) {
-  background: linear-gradient(90deg, var(--n-success-color-suppl), transparent);
-}
-
-:deep(.n-collapse-item[name="performance"] .n-collapse-item__header) {
-  background: linear-gradient(90deg, var(--n-info-color-suppl), transparent);
-}
-
-/* 滑块增强样式 */
-:deep(.n-slider-fill) {
-  background: linear-gradient(90deg, var(--n-primary-color), var(--n-primary-color-hover));
-}
-
-/* 选择器样式 */
-:deep(.n-select) {
-  transition: all 0.3s ease;
-}
-
-:deep(.n-select:hover) {
-  transform: translateY(-1px);
-}
-
-/* 标签增强样式 */
-:deep(.n-tag[type="success"]) {
-  background: var(--n-success-color-suppl);
-  color: var(--n-success-color);
-  border-color: var(--n-success-color);
-}
-
-:deep(.n-tag[type="warning"]) {
-  background: var(--n-warning-color-suppl);
-  color: var(--n-warning-color);
-  border-color: var(--n-warning-color);
-}
-
-:deep(.n-tag[type="error"]) {
-  background: var(--n-error-color-suppl);
-  color: var(--n-error-color);
-  border-color: var(--n-error-color);
 }
 </style>

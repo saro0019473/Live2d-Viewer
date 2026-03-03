@@ -32,7 +32,7 @@
               </svg>
             </n-icon>
           </template>
-          重置
+          Reset
         </n-button>
       </n-space>
     </n-space>

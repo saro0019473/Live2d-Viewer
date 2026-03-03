@@ -1,7 +1,7 @@
 <template>
   <div class="error-boundary">
     <div v-if="hasError" class="error-container">
-      <n-result status="error" title="组件渲染错误" :description="errorMessage">
+      <n-result status="error" title="Component Render Error" :description="errorMessage">
         <template #icon>
           <n-icon size="72" color="var(--n-error-color)">
             <svg viewBox="0 0 24 24">
@@ -9,30 +9,30 @@
             </svg>
           </n-icon>
         </template>
-        
+
         <template #footer>
           <n-space>
             <n-button @click="retry" type="primary">
-              重试
+              Retry
             </n-button>
             <n-button @click="goHome" quaternary>
-              返回首页
+              Go Home
             </n-button>
             <n-button @click="showDetails = !showDetails" quaternary>
-              {{ showDetails ? '隐藏' : '显示' }}详情
+              {{ showDetails ? 'Hide' : 'Show' }} Details
             </n-button>
           </n-space>
         </template>
       </n-result>
-      
+
       <!-- 错误详情 -->
       <n-collapse v-if="showDetails" style="margin-top: 16px;">
-        <n-collapse-item title="错误详情" name="details">
+        <n-collapse-item title="Error Details" name="details">
           <n-code :code="errorDetails" language="javascript" />
         </n-collapse-item>
       </n-collapse>
     </div>
-    
+
     <div v-else class="content-wrapper">
       <slot />
     </div>
@@ -55,17 +55,17 @@ export default {
 
     // 捕获子组件错误
     onErrorCaptured((error, instance, info) => {
-      console.error('🚨 [ErrorBoundary] 捕获到组件错误:', error)
-      console.error('🚨 [ErrorBoundary] 错误信息:', info)
-      console.error('🚨 [ErrorBoundary] 组件实例:', instance)
+      console.error('🚨 [ErrorBoundary] Caught component error:', error)
+      console.error('🚨 [ErrorBoundary] Error info:', info)
+      console.error('🚨 [ErrorBoundary] Component instance:', instance)
 
       hasError.value = true
       errorMessage.value = getErrorMessage(error, info)
       errorDetails.value = getErrorDetails(error, info)
-      
+
       // 发送错误事件
       emit('error', { error, instance, info })
-      
+
       // 阻止错误继续向上传播
       return false
     })
@@ -73,78 +73,78 @@ export default {
     const getErrorMessage = (error, info) => {
       if (error.message) {
         if (error.message.includes('render function')) {
-          return '组件渲染时发生错误，可能是数据状态或属性配置问题'
+          return 'An error occurred during component rendering, possibly due to data state or property configuration issues'
         } else if (error.message.includes('Cannot read property')) {
-          return '访问未定义的属性，请检查数据初始化'
+          return 'Accessing undefined property, please check data initialization'
         } else if (error.message.includes('Cannot resolve component')) {
-          return '无法解析组件，请检查组件导入和注册'
+          return 'Cannot resolve component, please check component import and registration'
         } else {
           return error.message
         }
       }
-      
+
       if (info) {
         if (info.includes('render')) {
-          return '组件渲染过程中发生错误'
+          return 'An error occurred during component rendering'
         } else if (info.includes('setup')) {
-          return '组件初始化过程中发生错误'
+          return 'An error occurred during component initialization'
         }
       }
-      
-      return '未知错误'
+
+      return 'Unknown error'
     }
 
     const getErrorDetails = (error, info) => {
       const details = []
-      
+
       if (error.message) {
-        details.push(`错误消息: ${error.message}`)
+        details.push(`Error message: ${error.message}`)
       }
-      
+
       if (error.stack) {
-        details.push(`错误堆栈:\n${error.stack}`)
+        details.push(`Error stack:\n${error.stack}`)
       }
-      
+
       if (info) {
-        details.push(`Vue信息: ${info}`)
+        details.push(`Vue info: ${info}`)
       }
-      
-      details.push(`重试次数: ${retryCount.value}/${maxRetries}`)
-      details.push(`时间: ${new Date().toLocaleString()}`)
-      
+
+      details.push(`Retry count: ${retryCount.value}/${maxRetries}`)
+      details.push(`Time: ${new Date().toLocaleString()}`)
+
       return details.join('\n\n')
     }
 
     const retry = async () => {
       if (retryCount.value >= maxRetries) {
-        errorMessage.value = `已达到最大重试次数 (${maxRetries})，请刷新页面或联系技术支持`
+        errorMessage.value = `Maximum retry count reached (${maxRetries}), please refresh the page or contact support`
         return
       }
 
-      console.log('🔄 [ErrorBoundary] 尝试重试...')
+      console.log('🔄 [ErrorBoundary] Attempting retry...')
       retryCount.value++
-      
+
       // 重置错误状态
       hasError.value = false
       errorMessage.value = ''
       errorDetails.value = ''
       showDetails.value = false
-      
+
       // 等待下一个tick再重新渲染
       await nextTick()
-      
+
       emit('retry')
     }
 
     const goHome = () => {
-      console.log('🏠 [ErrorBoundary] 返回首页')
+      console.log('🏠 [ErrorBoundary] Returning to home')
       // 重置所有状态
       hasError.value = false
       errorMessage.value = ''
       errorDetails.value = ''
       showDetails.value = false
       retryCount.value = 0
-      
+
       // 触发路由跳转到首页
       window.dispatchEvent(new CustomEvent('navigate-home'))
     }
@@ -191,11 +191,11 @@ export default {
   .error-container {
     padding: 1px;
   }
-  
+
   :deep(.n-result-header) {
     font-size: 18px;
   }
-  
+
   :deep(.n-result-description) {
     font-size: 14px;
   }

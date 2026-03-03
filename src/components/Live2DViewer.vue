@@ -5,34 +5,34 @@
     id="viewer-place"
     :style="petModeStyle"
   >
-    <!-- 加载状态指示器 -->
+    <!-- Loading State Indicator -->
     <div v-if="isLoading" class="loading-overlay">
       <n-spin size="large">
         <template #description>
-          <n-text>正在加载模型...</n-text>
+          <n-text>Loading model...</n-text>
         </template>
       </n-spin>
     </div>
 
-    <!-- 错误状态指示器 -->
+    <!-- Error State Indicator -->
     <div v-if="error" class="error-overlay">
-      <n-result status="error" title="模型加载失败" :description="error">
+      <n-result status="error" title="Model Loading Failed" :description="error">
         <template #footer>
           <n-space>
             <n-button @click="retryLoadModel" type="primary">
-              重试
+              Retry
             </n-button>
             <n-button @click="clearError" quaternary>
-              清除错误
+              Clear Error
             </n-button>
           </n-space>
         </template>
       </n-result>
     </div>
 
-    <!-- PIXI应用将在这里渲染 -->
+    <!-- PIXI app will render here -->
 
-    <!-- 文本容器 -->
+    <!-- Text Container -->
     <div id="text-container" class="text-container"></div>
   </div>
 </template>
@@ -45,14 +45,14 @@ import { isPetMode, isElectron, petModeAPI } from '../utils/electron.js'
 import { globalStateSyncManager } from '../utils/live2d/state-sync-manager.js'
 import { globalResourceManager } from '../utils/resource-manager.js'
 
-// 常量定义
-const DEFAULT_MODEL_SCALE = 0.2; // 默认模型缩放值
+// Constants
+const DEFAULT_MODEL_SCALE = 0.2; // Default model scale value
 
 // 日志工具函数
 const log = (message, level = 'info') => {
   const prefix = '[Live2DViewer]'
   const timestamp = new Date().toISOString()
-  
+
   switch (level) {
     case 'error':
       console.error(`${timestamp} ${prefix} ${message}`)
@@ -336,7 +336,7 @@ export default {
               (typeof currentScale === 'object' && (currentScale.x !== DEFAULT_MODEL_SCALE || currentScale.y !== DEFAULT_MODEL_SCALE)) ||
               (typeof currentScale === 'number' && currentScale !== DEFAULT_MODEL_SCALE)
             )
-            
+
             if (!hasUserScale) {
               // 只有在没有用户设置的情况下才进行自动适配
               heroModel.autoFitToCanvas(canvasWidth, canvasHeight, 0.8)
@@ -353,12 +353,12 @@ export default {
         log(`模型加载失败: ${error.message}`, 'error')
         live2dStore.setError(error.message || '模型加载失败')
         live2dStore.setLoading(false)
-        
+
         // 清理资源
         if (initTimeout) {
           clearTimeout(initTimeout)
         }
-        
+
         if (heroModel?.model) {
           try {
             // 移除事件监听器
@@ -369,7 +369,7 @@ export default {
             log(`清理失败模型时出错: ${cleanupError.message}`, 'error')
           }
         }
-        
+
         return false
       }
     }
@@ -382,21 +382,21 @@ export default {
 
       try {
         log(`移除模型: ${modelId}`, 'debug')
-        
+
         // 注销状态同步
         unregisterModelStateSync(modelId)
-        
+
         // 使用 Live2DManager 的 removeModel 方法
         live2dManager.removeModel(modelId)
-        
+
         // 从 store 中移除模型
         live2dStore.removeLoadedModel(modelId)
-        
+
         // 如果移除的是当前模型，清除当前模型
         if (live2dStore.currentModel?.id === modelId) {
           live2dStore.setCurrentModel(null)
         }
-        
+
         log(`模型移除成功: ${modelId}`)
         return true
       } catch (error) {
@@ -1068,7 +1068,7 @@ export default {
         // 1. 清理桌宠模式资源
         if (petMode.value) {
           console.log('🧹 [Live2DViewer] 清理桌宠模式资源...')
-          
+
           // 停止自动交互
           stopPetModeAutoInteraction()
 
