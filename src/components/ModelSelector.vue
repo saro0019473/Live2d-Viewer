@@ -694,10 +694,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useMessage, NEllipsis } from "naive-ui";
 import { useLive2DStore } from "../stores/live2d";
-import { useWebSocketStore } from "../stores/websocket";
 
 export default {
     name: "ModelSelector",
@@ -707,7 +706,6 @@ export default {
     emits: ["model-selected", "model-configure"],
     setup(_, { emit }) {
         const live2dStore = useLive2DStore();
-        const webSocketStore = useWebSocketStore();
         const message = useMessage();
 
         const loading = ref(false);
@@ -1002,33 +1000,9 @@ export default {
             try {
                 console.log("[ModelSelector] Checking server preset models...");
 
-                if (webSocketStore.isConnected) {
-                    const serverModelInfo =
-                        webSocketStore.configs.character?.model_info;
-                    if (serverModelInfo) {
-                        console.log(
-                            "[ModelSelector] Found loaded server model info:",
-                            serverModelInfo,
-                        );
-                        const serverModel = {
-                            id: serverModelInfo.name,
-                            name: serverModelInfo.name,
-                            description: serverModelInfo.description,
-                            url: serverModelInfo.url,
-                            ...serverModelInfo,
-                        };
-                        presetModels.value = [serverModel];
-                        console.log("[ModelSelector] Server preset model set.");
-                    } else {
-                        console.log(
-                            "[ModelSelector] Connected but no model info in current config.",
-                        );
-                    }
-                } else {
-                    console.log(
-                        "[ModelSelector] Not connected to server, skipping preset models.",
-                    );
-                }
+                console.log(
+                    "[ModelSelector] Server connection removed, skipping preset models.",
+                );
             } catch (error) {
                 console.error(
                     "[ModelSelector] Failed to load model data:",
@@ -1198,7 +1172,7 @@ export default {
             }
         };
 
-        // WebSocket event handler
+        // Model config update handler (via window events)
         const handleModelConfigUpdate = (event) => {
             console.log(
                 "[ModelSelector] Received model config update:",
@@ -1264,21 +1238,6 @@ export default {
                 );
             }
         };
-
-        // Watch connection status changes
-        watch(
-            () => webSocketStore.isConnected,
-            (isConnected) => {
-                if (isConnected) {
-                    loadModelData();
-                } else {
-                    presetModels.value = [];
-                    console.log(
-                        "[ModelSelector] Disconnected, clearing preset models.",
-                    );
-                }
-            },
-        );
 
         onMounted(() => {
             window.addEventListener(
