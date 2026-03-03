@@ -1,529 +1,548 @@
 /**
- * Live2D Manager - 主管理器
- * 整合所有子管理器，提供统一的API接口
+ * Live2D Manager - Main Manager
+ * Integrates all sub-managers and provides a unified API interface
  */
 
-import { Live2DCoreManager } from './core-manager.js'
-import { Live2DModelManager } from './model-manager.js'
-import { Live2DInteractionManager } from './interaction-manager.js'
-import { Live2DAnimationManager } from './animation-manager.js'
-import { getRecommendedSettings, checkWebGLSupport, createLogger } from './utils.js'
+import { Live2DCoreManager } from "./core-manager.js";
+import { Live2DModelManager } from "./model-manager.js";
+import { Live2DInteractionManager } from "./interaction-manager.js";
+import { Live2DAnimationManager } from "./animation-manager.js";
+import {
+  getRecommendedSettings,
+  checkWebGLSupport,
+  createLogger,
+} from "./utils.js";
 
 export class Live2DManager {
   constructor(container) {
-    this.container = container
-    this.logger = createLogger('Live2DManager')
-    
-    // 初始化子管理器
-    this.coreManager = new Live2DCoreManager(container)
-    this.modelManager = new Live2DModelManager(this.coreManager)
-    this.animationManager = new Live2DAnimationManager(this.modelManager)
-    
-    // interactionManager将在coreManager初始化后创建
-    this.interactionManager = null
-    
-    this.isInitialized = false
+    this.container = container;
+    this.logger = createLogger("Live2DManager");
+
+    // Initialize sub-managers
+    this.coreManager = new Live2DCoreManager(container);
+    this.modelManager = new Live2DModelManager(this.coreManager);
+    this.animationManager = new Live2DAnimationManager(this.modelManager);
+
+    // interactionManager will be created after coreManager is initialized
+    this.interactionManager = null;
+
+    this.isInitialized = false;
   }
 
   /**
-   * 初始化Live2D管理器
-   * @param {Object} options - 初始化选项
+   * Initialize the Live2D manager
+   * @param {Object} options - Initialization options
    */
   async init(options = {}) {
     try {
-      this.logger.log('开始初始化...')
+      this.logger.log("Starting initialization...");
 
-      // 检查WebGL支持
+      // Check WebGL support
       if (!checkWebGLSupport()) {
-        throw new Error('浏览器不支持WebGL，无法运行Live2D')
+        throw new Error("Browser does not support WebGL, cannot run Live2D");
       }
 
-      // 获取推荐设置
-      const recommendedSettings = getRecommendedSettings()
-      const settings = { ...recommendedSettings, ...options }
+      // Get recommended settings
+      const recommendedSettings = getRecommendedSettings();
+      const settings = { ...recommendedSettings, ...options };
 
-      // 初始化核心管理器
-      await this.coreManager.init()
+      // Initialize core manager
+      await this.coreManager.init();
 
-      // 应用性能优化设置
-      this.coreManager.optimizePerformance(settings)
+      // Apply performance optimization settings
+      this.coreManager.optimizePerformance(settings);
 
-      // 在coreManager初始化后创建interactionManager
-      this.interactionManager = new Live2DInteractionManager(this.coreManager, this.modelManager)
+      // Create interactionManager after coreManager is initialized
+      this.interactionManager = new Live2DInteractionManager(
+        this.coreManager,
+        this.modelManager,
+      );
       if (this.interactionManager) {
-        this.interactionManager.initialize()
+        this.interactionManager.initialize();
       }
 
-      this.isInitialized = true
-      this.logger.log('初始化完成')
-      
-      return true
+      this.isInitialized = true;
+      this.logger.log("Initialization complete");
+
+      return true;
     } catch (error) {
-      this.logger.error(`初始化失败: ${error.message}`)
-      throw error
+      this.logger.error(`Initialization failed: ${error.message}`);
+      throw error;
     }
   }
 
-  // === 模型管理 API ===
+  // === Model Management API ===
 
   /**
-   * 加载模型
-   * @param {Object} modelData - 模型数据
-   * @returns {Promise<Object>} 加载的模型实例
+   * Load a model
+   * @param {Object} modelData - Model data
+   * @returns {Promise<Object>} Loaded model instance
    */
   async loadModel(modelData) {
     try {
-      this.logger.log('开始加载模型:', modelData.id)
+      this.logger.log("Starting model load:", modelData.id);
 
-      // 使用模型管理器加载模型
-      const heroModel = await this.modelManager.loadModel(modelData)
+      // Use model manager to load the model
+      const heroModel = await this.modelManager.loadModel(modelData);
 
-      if (heroModel) { // interactionManager在init后总是存在的
-        // 绑定交互事件
-        this.interactionManager.bindModelInteractionEvents(modelData.id, heroModel)
-        this.logger.log('模型加载成功:', modelData.id)
+      if (heroModel) {
+        // interactionManager always exists after init
+        // Bind interaction events
+        this.interactionManager.bindModelInteractionEvents(
+          modelData.id,
+          heroModel,
+        );
+        this.logger.log("Model loaded successfully:", modelData.id);
       }
 
-      return heroModel
+      return heroModel;
     } catch (error) {
-      this.logger.error('模型加载失败:', error)
-      throw error
+      this.logger.error("Model loading failed:", error);
+      throw error;
     }
   }
 
   /**
-   * 卸载模型
-   * @param {string} modelId - 模型ID
+   * Unload a model
+   * @param {string} modelId - Model ID
    */
   unloadModel(modelId) {
     try {
-      this.logger.log('开始卸载模型:', modelId)
+      this.logger.log("Starting model unload:", modelId);
 
-      // 清理交互事件监听器
+      // Clean up interaction event listeners
       if (this.interactionManager) {
-        this.interactionManager.cleanupModelEventListeners(modelId)
+        this.interactionManager.cleanupModelEventListeners(modelId);
       }
 
-      // 使用模型管理器卸载模型
-      this.modelManager.unloadModel(modelId)
+      // Use model manager to unload the model
+      this.modelManager.unloadModel(modelId);
 
-      this.logger.log('模型卸载成功:', modelId)
+      this.logger.log("Model unloaded successfully:", modelId);
     } catch (error) {
-      this.logger.error('模型卸载失败:', error)
+      this.logger.error("Model unload failed:", error);
     }
   }
 
   /**
-   * 切换模型
-   * @param {Object} modelData - 新模型数据
-   * @returns {Promise<Object>} 新模型实例
+   * Switch model
+   * @param {Object} modelData - New model data
+   * @returns {Promise<Object>} New model instance
    */
   async switchModel(modelData) {
     try {
-      this.logger.log('开始切换模型:', modelData.id)
+      this.logger.log("Starting model switch:", modelData.id);
 
-      // 卸载当前模型
-      const currentModel = this.modelManager.getCurrentModel()
-      if (currentModel) { // interactionManager在init后总是存在的
-        this.interactionManager.cleanupModelEventListeners(currentModel.id)
-        this.modelManager.unloadModel(currentModel.id)
+      // Unload current model
+      const currentModel = this.modelManager.getCurrentModel();
+      if (currentModel) {
+        // interactionManager always exists after init
+        this.interactionManager.cleanupModelEventListeners(currentModel.id);
+        this.modelManager.unloadModel(currentModel.id);
       }
 
-      // 加载新模型
-      const newModel = await this.loadModel(modelData)
+      // Load new model
+      const newModel = await this.loadModel(modelData);
 
-      // 绑定新模型的交互事件
-      if (newModel) { // interactionManager在init后总是存在的
-        this.interactionManager.bindModelInteractionEvents(modelData.id, newModel)
+      // Bind interaction events for the new model
+      if (newModel) {
+        // interactionManager always exists after init
+        this.interactionManager.bindModelInteractionEvents(
+          modelData.id,
+          newModel,
+        );
       }
 
-      this.logger.log('模型切换成功:', modelData.id)
-      return newModel
+      this.logger.log("Model switch successful:", modelData.id);
+      return newModel;
     } catch (error) {
-      this.logger.error('模型切换失败:', error)
-      throw error
+      this.logger.error("Model switch failed:", error);
+      throw error;
     }
   }
 
   /**
-   * 自动适应模型到画布大小
-   * @param {HeroModel} heroModel - 模型实例
+   * Auto-fit model to canvas size
+   * @param {HeroModel} heroModel - Model instance
    */
   autoFitModelToCanvas(heroModel) {
-    if (!heroModel || !this.container) return
+    if (!heroModel || !this.container) return;
 
     try {
-      const canvasWidth = this.container.clientWidth
-      const canvasHeight = this.container.clientHeight
-      
+      const canvasWidth = this.container.clientWidth;
+      const canvasHeight = this.container.clientHeight;
+
       if (canvasWidth > 0 && canvasHeight > 0) {
-        // 使用更保守的高度比例，横屏模型会自动适配
-        heroModel.autoFitToCanvas(canvasWidth, canvasHeight, 0.5)
+        // Use a more conservative height ratio; landscape models will auto-adapt
+        heroModel.autoFitToCanvas(canvasWidth, canvasHeight, 0.5);
       }
     } catch (error) {
-      this.logger.debug(`自动适应画布大小失败: ${error.message}`)
+      this.logger.debug(`Auto-fit to canvas failed: ${error.message}`);
     }
   }
 
   /**
-   * 移除模型
-   * @param {string} modelId - 模型ID
+   * Remove a model
+   * @param {string} modelId - Model ID
    */
   removeModel(modelId) {
-    this.logger.log('开始移除模型:', modelId)
+    this.logger.log("Starting model removal:", modelId);
 
     try {
-      const heroModel = this.modelManager.getModel(modelId)
+      const heroModel = this.modelManager.getModel(modelId);
       if (!heroModel) {
-        this.logger.warn('模型不存在:', modelId)
-        return
+        this.logger.warn("Model does not exist:", modelId);
+        return;
       }
 
-      // 1. 停止所有动画
+      // 1. Stop all animations
       try {
         if (this.animationManager) {
-          this.animationManager.stopAllAnimations(modelId)
-          this.logger.log('已停止模型动画:', modelId)
+          this.animationManager.stopAllAnimations(modelId);
+          this.logger.log("Stopped model animations:", modelId);
         }
       } catch (e) {
-        this.logger.warn(`停止动画失败: ${e.message}`)
+        this.logger.warn(`Failed to stop animations: ${e.message}`);
       }
 
-      // 2. 清理交互事件
+      // 2. Clean up interaction events
       try {
         if (this.interactionManager) {
-          this.interactionManager.cleanupModelEventListeners(modelId)
-          this.logger.log('已清理模型交互事件:', modelId)
+          this.interactionManager.cleanupModelEventListeners(modelId);
+          this.logger.log("Cleaned up model interaction events:", modelId);
         }
       } catch (e) {
-        this.logger.warn(`清理交互事件失败: ${e.message}`)
+        this.logger.warn(`Failed to clean up interaction events: ${e.message}`);
       }
 
-      // 3. 从模型管理器中移除（这会触发模型的销毁）
+      // 3. Remove from model manager (this triggers model destruction)
       try {
-        this.modelManager.removeModel(modelId)
-        this.logger.log('已从模型管理器移除:', modelId)
+        this.modelManager.removeModel(modelId);
+        this.logger.log("Removed from model manager:", modelId);
       } catch (e) {
-        this.logger.error(`从模型管理器移除失败: ${e.message}`)
-        throw e
+        this.logger.error(`Failed to remove from model manager: ${e.message}`);
+        throw e;
       }
 
-      this.logger.log(`模型移除完成: ${modelId}`)
+      this.logger.log(`Model removal complete: ${modelId}`);
     } catch (error) {
-      this.logger.error(`移除模型失败: ${error.message}`)
-      throw error
+      this.logger.error(`Failed to remove model: ${error.message}`);
+      throw error;
     }
   }
 
   /**
-   * 刷新模型
+   * Refresh a model
    */
   async refreshModel(modelId, modelData) {
-    // 清理旧的交互事件
+    // Clean up old interaction events
     if (this.interactionManager) {
-      this.interactionManager.cleanupModelEventListeners(modelId)
+      this.interactionManager.cleanupModelEventListeners(modelId);
     }
-    
-    // 刷新模型
-    const heroModel = await this.modelManager.refreshModel(modelId, modelData)
-    
-    // 重新绑定交互事件
+
+    // Refresh the model
+    const heroModel = await this.modelManager.refreshModel(modelId, modelData);
+
+    // Re-bind interaction events
     if (heroModel && this.interactionManager) {
-      this.interactionManager.bindModelInteractionEvents(modelId, heroModel)
+      this.interactionManager.bindModelInteractionEvents(modelId, heroModel);
     }
-    
-    return heroModel
+
+    return heroModel;
   }
 
   /**
-   * 获取模型
-   * @param {string} modelId - 模型ID
-   * @returns {HeroModel|null} 模型实例
+   * Get a model
+   * @param {string} modelId - Model ID
+   * @returns {HeroModel|null} Model instance
    */
   getModel(modelId) {
-    return this.modelManager.getModel(modelId)
+    return this.modelManager.getModel(modelId);
   }
 
   /**
-   * 检查模型是否存在
-   * @param {string} modelId - 模型ID
-   * @returns {boolean} 是否存在
+   * Check if a model exists
+   * @param {string} modelId - Model ID
+   * @returns {boolean} Whether the model exists
    */
   hasModel(modelId) {
-    return this.modelManager.hasModel(modelId)
+    return this.modelManager.hasModel(modelId);
   }
 
   /**
-   * 获取所有模型
-   * @returns {HeroModel[]} 所有模型实例
+   * Get all models
+   * @returns {HeroModel[]} All model instances
    */
   getAllModels() {
-    return this.modelManager.getAllModels()
+    return this.modelManager.getAllModels();
   }
 
   /**
-   * 获取所有模型ID
-   * @returns {string[]} 所有模型ID
+   * Get all model IDs
+   * @returns {string[]} All model IDs
    */
   getAllModelIds() {
-    return this.modelManager.getAllModelIds()
+    return this.modelManager.getAllModelIds();
   }
 
   /**
-   * 获取当前模型
-   * @returns {HeroModel|null} 当前模型实例
+   * Get the current model
+   * @returns {HeroModel|null} Current model instance
    */
   getCurrentModel() {
-    return this.modelManager.getCurrentModel()
+    return this.modelManager.getCurrentModel();
   }
 
   /**
-   * 设置当前模型
-   * @param {string} modelId - 模型ID
+   * Set the current model
+   * @param {string} modelId - Model ID
    */
   setCurrentModel(modelId) {
-    this.modelManager.setCurrentModel(modelId)
+    this.modelManager.setCurrentModel(modelId);
   }
 
   /**
-   * 获取第一个可用模型
-   * @returns {HeroModel|null} 第一个可用模型
+   * Get the first available model
+   * @returns {HeroModel|null} First available model
    */
   getFirstAvailableModel() {
-    return this.modelManager.getFirstAvailableModel()
+    return this.modelManager.getFirstAvailableModel();
   }
 
-  // === 动画控制 API ===
+  // === Animation Control API ===
 
   /**
-   * 播放动作
+   * Play a motion
    */
   async playMotion(modelId, group, index, priority = 2) {
-    return this.animationManager.playMotion(modelId, group, index, priority)
+    return this.animationManager.playMotion(modelId, group, index, priority);
   }
 
   /**
-   * 播放随机动作
+   * Play a random motion
    */
   async playRandomMotion(modelId, group = null) {
-    return this.animationManager.playRandomMotion(modelId, group)
+    return this.animationManager.playRandomMotion(modelId, group);
   }
 
   /**
-   * 设置表情
+   * Set an expression
    */
   setExpression(modelId, expressionIndex) {
-    return this.animationManager.setExpression(modelId, expressionIndex)
+    return this.animationManager.setExpression(modelId, expressionIndex);
   }
 
   /**
-   * 播放随机表情
+   * Play a random expression
    */
   playRandomExpression(modelId) {
-    return this.animationManager.playRandomExpression(modelId)
+    return this.animationManager.playRandomExpression(modelId);
   }
 
   /**
-   * 批量控制表情
+   * Batch control expressions
    */
   batchControlExpressions(expressions, modelIds = null) {
-    return this.animationManager.batchControlExpressions(expressions, modelIds)
+    return this.animationManager.batchControlExpressions(expressions, modelIds);
   }
 
   /**
-   * 批量控制动作
+   * Batch control motions
    */
   async batchControlMotions(motions, modelIds = null) {
-    return this.animationManager.batchControlMotions(motions, modelIds)
+    return this.animationManager.batchControlMotions(motions, modelIds);
   }
 
   /**
-   * 播放音频
+   * Play audio
    */
   async playAudio(audioUrl, options = {}) {
-    return this.animationManager.playAudio(audioUrl, options)
+    return this.animationManager.playAudio(audioUrl, options);
   }
 
   /**
-   * 停止音频
+   * Stop audio
    */
   stopAudio() {
-    this.animationManager.stopAudio()
+    this.animationManager.stopAudio();
   }
 
   /**
-   * 获取音频状态
+   * Get audio status
    */
   getAudioStatus() {
-    return this.animationManager.getAudioStatus()
+    return this.animationManager.getAudioStatus();
   }
 
-  // === 交互控制 API ===
+  // === Interaction Control API ===
 
   /**
-   * 设置交互功能启用状态
-   * @param {boolean} enabled - 是否启用
+   * Set interaction enabled state
+   * @param {boolean} enabled - Whether to enable
    */
   setInteractionEnabled(enabled) {
     if (this.interactionManager) {
-      this.interactionManager.setInteractionEnabled(enabled)
-      this.logger.log(`🖱️ 交互功能已${enabled ? '启用' : '禁用'}`)
+      this.interactionManager.setInteractionEnabled(enabled);
+      this.logger.log(`🖱️ Interaction ${enabled ? "enabled" : "disabled"}`);
     }
   }
 
   /**
-   * 设置模型位置
-   * @param {string} modelId - 模型ID
-   * @param {number} x - X坐标
-   * @param {number} y - Y坐标
+   * Set model position
+   * @param {string} modelId - Model ID
+   * @param {number} x - X coordinate
+   * @param {number} y - Y coordinate
    */
   setModelPosition(modelId, x, y) {
     if (this.interactionManager) {
-      return this.interactionManager.setModelPosition(modelId, x, y)
+      return this.interactionManager.setModelPosition(modelId, x, y);
     }
   }
 
-
   /**
-   * 获取当前缩放设置
-   * @returns {Object|null} 当前缩放设置
+   * Get current zoom settings
+   * @returns {Object|null} Current zoom settings
    */
   getZoomSettings() {
     if (!this.interactionManager) {
-      return null
+      return null;
     }
 
     try {
-      return this.interactionManager.getZoomSettings()
+      return this.interactionManager.getZoomSettings();
     } catch (error) {
-      this.logger.error('获取缩放设置失败:', error)
-      return null
+      this.logger.error("Failed to get zoom settings:", error);
+      return null;
     }
   }
 
   /**
-   * 设置滚轮缩放启用状态
-   * @param {boolean} enabled - 是否启用滚轮缩放
+   * Set wheel zoom enabled state
+   * @param {boolean} enabled - Whether to enable wheel zoom
    */
   setWheelZoomEnabled(enabled) {
     if (!this.interactionManager) {
-      this.logger.warn('交互管理器未初始化，无法设置滚轮缩放')
-      return
+      this.logger.warn(
+        "Interaction manager not initialized, cannot set wheel zoom",
+      );
+      return;
     }
 
     try {
-      this.interactionManager.setWheelZoomEnabled(enabled)
-      this.logger.log('滚轮缩放状态已设置:', enabled)
+      this.interactionManager.setWheelZoomEnabled(enabled);
+      this.logger.log("Wheel zoom state set:", enabled);
     } catch (error) {
-      this.logger.error('设置滚轮缩放状态失败:', error)
+      this.logger.error("Failed to set wheel zoom state:", error);
     }
   }
 
-  // === 性能和设置 API ===
+  // === Performance and Settings API ===
 
   /**
-   * 更新性能设置
+   * Update performance settings
    */
   updatePerformanceSettings(settings) {
-    this.coreManager.optimizePerformance(settings)
+    this.coreManager.optimizePerformance(settings);
   }
 
   /**
-   * 获取性能统计
+   * Get performance statistics
    */
   getPerformanceStats() {
-    return this.coreManager.getPerformanceStats()
+    return this.coreManager.getPerformanceStats();
   }
 
   /**
-   * 暂停/恢复渲染
+   * Pause/resume rendering
    */
   setPaused(paused) {
-    this.coreManager.setPaused(paused)
+    this.coreManager.setPaused(paused);
   }
 
   /**
-   * 更新画布尺寸
+   * Update canvas dimensions
    */
   resize(width, height) {
-    this.coreManager.resize(width, height)
-    this.modelManager.repositionModels()
-    
-    // 自动适应所有模型到新的画布大小
-    this.autoFitAllModelsToCanvas(width, height)
+    this.coreManager.resize(width, height);
+    this.modelManager.repositionModels();
+
+    // Auto-fit all models to the new canvas size
+    this.autoFitAllModelsToCanvas(width, height);
   }
 
   /**
-   * 自动适应所有模型到画布大小
-   * @param {number} width - 画布宽度
-   * @param {number} height - 画布高度
+   * Auto-fit all models to canvas size
+   * @param {number} width - Canvas width
+   * @param {number} height - Canvas height
    */
   autoFitAllModelsToCanvas(width, height) {
-    if (!width || !height) return
+    if (!width || !height) return;
 
     try {
-      const models = this.modelManager.getAllModels()
-      models.forEach(heroModel => {
+      const models = this.modelManager.getAllModels();
+      models.forEach((heroModel) => {
         if (heroModel && heroModel.autoFitToCanvas) {
-          // 使用更保守的高度比例，横屏模型会自动适配
-          heroModel.autoFitToCanvas(width, height, 0.5)
+          // Use a more conservative height ratio; landscape models will auto-adapt
+          heroModel.autoFitToCanvas(width, height, 0.5);
         }
-      })
+      });
     } catch (error) {
-      this.logger.debug(`自动适应所有模型到画布大小失败: ${error.message}`)
+      this.logger.debug(
+        `Failed to auto-fit all models to canvas: ${error.message}`,
+      );
     }
   }
 
   /**
-   * 销毁Live2D管理器
+   * Destroy the Live2D manager
    */
   destroy() {
-    this.logger.log('开始销毁Live2D管理器...')
+    this.logger.log("Starting Live2D manager destruction...");
 
     try {
-      // 销毁交互管理器
+      // Destroy interaction manager
       if (this.interactionManager) {
-        this.interactionManager.destroy()
+        this.interactionManager.destroy();
       }
 
-      // 销毁其他管理器
+      // Destroy other managers
       if (this.animationManager) {
-        this.animationManager.destroy()
+        this.animationManager.destroy();
       }
 
       if (this.modelManager) {
-        this.modelManager.destroy()
+        this.modelManager.destroy();
       }
 
       if (this.coreManager) {
-        this.coreManager.destroy()
+        this.coreManager.destroy();
       }
 
-      this.isInitialized = false
-      this.logger.log('Live2D管理器销毁完成')
+      this.isInitialized = false;
+      this.logger.log("Live2D manager destruction complete");
     } catch (error) {
-      this.logger.error(`销毁Live2D管理器失败: ${error.message}`)
+      this.logger.error(`Failed to destroy Live2D manager: ${error.message}`);
     }
   }
 
-  // === 子管理器直接暴露 ===
+  // === Direct sub-manager access ===
   get interaction() {
-    return this.interactionManager
+    return this.interactionManager;
   }
 
   get model() {
-    return this.modelManager
+    return this.modelManager;
   }
 
   get animation() {
-    return this.animationManager
+    return this.animationManager;
   }
 
   get core() {
-    return this.coreManager
+    return this.coreManager;
   }
 }
 
-// 说明：
-// 现在可直接通过 live2dManager.interaction.xxx()、live2dManager.animation.xxx() 等方式访问子管理器API。
-// 原有的简单转发方法已移除，推荐直接使用子管理器。
+// Note:
+// Sub-manager APIs can now be accessed directly via live2dManager.interaction.xxx(), live2dManager.animation.xxx(), etc.
+// The original simple forwarding methods have been removed; using sub-managers directly is recommended.

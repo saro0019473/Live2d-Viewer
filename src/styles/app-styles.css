@@ -1,4 +1,4 @@
-/* 全局主题变量 */
+/* Global theme variables */
 :root {
     --app-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --app-border-radius: 12px;
@@ -26,7 +26,7 @@
     transition: var(--app-transition);
 }
 
-/* 主要内容区域 */
+/* Main content area */
 .main-content {
     flex: 1;
     padding: 1px;
@@ -41,7 +41,7 @@
     gap: 5px;
 }
 
-/* 左侧设置面板 */
+/* Left settings panel */
 .settings-panel {
     display: flex;
     height: 100%;
@@ -224,7 +224,7 @@
     background: var(--n-scrollbar-color-hover);
 }
 
-/* 右侧Live2D区域 */
+/* Right Live2D area */
 .live2d-main-area {
     height: 100%;
     color: var(--n-text-color);
@@ -271,12 +271,12 @@
     justify-content: center;
 }
 
-/* AI控制面板 */
+/* AI control panel */
 .ai-control-container {
     overflow-y: auto;
 }
 
-/* 加载容器 */
+/* Loading container */
 .loading-container {
     display: flex;
     align-items: center;
@@ -284,7 +284,7 @@
     height: 200px;
 }
 
-/* 响应式设计 */
+/* Responsive design */
 @media (max-width: 1200px) {
     .main-split {
         --n-split-default-size: 0.4;
@@ -397,17 +397,17 @@
     }
 }
 
-/* 确保模态框在最上层 */
+/* Ensure modal is on top layer */
 .n-modal {
     z-index: 1000 !important;
 }
 
-/* 确保字幕在最上层 */
+/* Ensure subtitles are on top layer */
 .subtitle-container {
     z-index: 999 !important;
 }
 
-/* 确保历史记录模态框在最上层 */
+/* Ensure history modal is on top layer */
 .history-modal {
     z-index: 1000 !important;
 }
@@ -445,7 +445,7 @@
     border-bottom: 1px solid var(--n-border-color);
 }
 
-/* 添加桌宠模式样式 */
+/* Desktop pet mode styles */
 .pet-mode {
     background: transparent !important;
     overflow: hidden;
@@ -475,18 +475,18 @@
     z-index: 1000;
 }
 
-/* 确保在桌宠模式下隐藏其他元素 */
+/* Ensure other elements are hidden in desktop pet mode */
 .pet-mode .main-layout {
     display: none;
 }
 
-/* 保持原有样式 */
+/* Keep original styles */
 .app-container {
     height: 100vh;
     overflow: hidden;
 }
 
-/* 添加主题相关的样式 */
+/* Theme-related styles */
 body {
     transition:
         background-color 0.3s ease,

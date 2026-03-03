@@ -1,6 +1,6 @@
 <template>
     <n-card :bordered="false">
-        <!-- 模型信息头部 -->
+        <!-- Model info header -->
         <template #header>
             <n-space align="center">
                 <n-button quaternary circle @click="goBack">
@@ -56,7 +56,7 @@
         <n-spin :show="!currentModel || loading">
             <div v-if="currentModel">
                 <n-scrollbar class="scrollable-content">
-                    <!-- 使用折叠面板组织所有设置 -->
+                    <!-- Use collapse panel to organize all settings -->
                     <n-collapse default-expanded-names="display">
                         <!-- Display Settings -->
                         <n-collapse-item
@@ -1037,7 +1037,7 @@ export default {
         // State sync manager integration
         const stateSyncEnabled = ref(true);
         const lastSyncTime = ref(0);
-        const syncInterval = 100; // 100ms同步间隔
+        const syncInterval = 100; // 100ms sync interval
 
         // Motion playback state management
         const isMotionPlaying = ref(false);
@@ -1056,14 +1056,14 @@ export default {
             breathing: true,
             eyeBlinking: true,
             interactive: true,
-            // 交互功能设置
+            // Interaction settings
             wheelZoom: true,
             clickInteraction: true,
-            // 缩放设置
+            // Zoom settings
             zoomSpeed: 0.01,
             minScale: 0.01,
             maxScale: 5.0,
-            // 新增
+            // Additional settings
             enableAudio: true,
             showText: true,
         });
@@ -1803,7 +1803,7 @@ export default {
                         typeof live2dStore.manager,
                     );
                     console.log(
-                        "🔍 [ModelSettings] manager对象:",
+                        "🔍 [ModelSettings] manager object:",
                         live2dStore.manager,
                     );
                     return;
@@ -2000,7 +2000,7 @@ export default {
                     }
 
                     console.log(
-                        "🔄 [ModelSettings] 状态已从模型同步到UI:",
+                        "🔄 [ModelSettings] State synced from model to UI:",
                         modelId,
                         currentState,
                     );
@@ -2379,22 +2379,22 @@ export default {
     }
 }
 
-/* 加载状态 */
+/* Loading state */
 :deep(.n-spin-container) {
     min-height: 200px;
 }
 
-/* 空状态样式 */
+/* Empty state styles */
 :deep(.n-empty) {
     padding: 20px;
 }
 
-/* 标签样式 */
+/* Tag styles */
 :deep(.n-tag) {
     font-size: 11px;
 }
 
-/* 滚动条样式 */
+/* Scrollbar styles */
 :deep(.n-scrollbar-rail) {
     right: 2px;
 }

@@ -1,13 +1,13 @@
 /**
- * Live2D 状态同步管理器
- * 统一管理模型状态与UI之间的同步
+ * Live2D State Sync Manager
+ * Centralized management of synchronization between model state and UI
  */
 
 import { globalResourceManager } from "../resource-manager.js";
 
-// 统一状态同步工具
+// Unified state sync utilities
 const StateSyncUtils = {
-  // 获取模型状态
+  // Get model state
   getModelState(model) {
     if (!model?.internalModel) return null;
 
@@ -20,24 +20,24 @@ const StateSyncUtils = {
       };
       return state;
     } catch (error) {
-      console.error("获取模型状态失败:", error);
+      console.error("Failed to get model state:", error);
       return null;
     }
   },
 
-  // 获取表情状态
+  // Get expression state
   getExpressionState(model) {
     try {
       const expressions =
         model.internalModel.settings.getExpressionDefinitions();
       return expressions ? expressions.map((expr) => expr.name) : [];
     } catch (error) {
-      console.warn("获取表情状态失败:", error);
+      console.warn("Failed to get expression state:", error);
       return [];
     }
   },
 
-  // 获取动作状态
+  // Get motion state
   getMotionState(model) {
     try {
       const motionManager = model.internalModel.motionManager;
@@ -49,12 +49,12 @@ const StateSyncUtils = {
           }
         : null;
     } catch (error) {
-      console.warn("获取动作状态失败:", error);
+      console.warn("Failed to get motion state:", error);
       return null;
     }
   },
 
-  // 获取参数状态
+  // Get parameter state
   getParameterState(model) {
     try {
       const parameters = {};
@@ -70,18 +70,18 @@ const StateSyncUtils = {
 
       return parameters;
     } catch (error) {
-      console.warn("获取参数状态失败:", error);
+      console.warn("Failed to get parameter state:", error);
       return {};
     }
   },
 
-  // 获取部件状态
+  // Get part state
   getPartState(model) {
     try {
       const parts = {};
       const coreModel = model.internalModel.coreModel;
 
-      // 使用公共API获取部件信息
+      // Use public API to get part information
       const partCount = coreModel.getPartCount();
       for (let i = 0; i < partCount; i++) {
         const partId = coreModel.getPartId(i);
@@ -90,44 +90,44 @@ const StateSyncUtils = {
 
       return parts;
     } catch (error) {
-      console.warn("获取部件状态失败:", error);
+      console.warn("Failed to get part state:", error);
       return {};
     }
   },
 
-  // 应用UI设置到模型
+  // Apply UI settings to model
   applyUISettings(model, uiSettings) {
     if (!model?.internalModel) return false;
 
     try {
-      // 应用表情设置
+      // Apply expression settings
       if (uiSettings.expressions) {
         this.applyExpressionSettings(model, uiSettings.expressions);
       }
 
-      // 应用动作设置
+      // Apply motion settings
       if (uiSettings.motions) {
         this.applyMotionSettings(model, uiSettings.motions);
       }
 
-      // 应用参数设置
+      // Apply parameter settings
       if (uiSettings.parameters) {
         this.applyParameterSettings(model, uiSettings.parameters);
       }
 
-      // 应用部件设置
+      // Apply part settings
       if (uiSettings.parts) {
         this.applyPartSettings(model, uiSettings.parts);
       }
 
       return true;
     } catch (error) {
-      console.error("应用UI设置失败:", error);
+      console.error("Failed to apply UI settings:", error);
       return false;
     }
   },
 
-  // 应用表情设置
+  // Apply expression settings
   applyExpressionSettings(model, expressionSettings) {
     try {
       Object.entries(expressionSettings).forEach(([expressionId, enabled]) => {
@@ -143,11 +143,11 @@ const StateSyncUtils = {
         }
       });
     } catch (error) {
-      console.warn("应用表情设置失败:", error);
+      console.warn("Failed to apply expression settings:", error);
     }
   },
 
-  // 应用动作设置
+  // Apply motion settings
   applyMotionSettings(model, motionSettings) {
     try {
       const motionManager = model.internalModel.motionManager;
@@ -159,11 +159,11 @@ const StateSyncUtils = {
         }
       });
     } catch (error) {
-      console.warn("应用动作设置失败:", error);
+      console.warn("Failed to apply motion settings:", error);
     }
   },
 
-  // 应用参数设置
+  // Apply parameter settings
   applyParameterSettings(model, parameterSettings) {
     try {
       const coreModel = model.internalModel.coreModel;
@@ -171,11 +171,11 @@ const StateSyncUtils = {
         coreModel.setParameterValueById(paramId, value);
       });
     } catch (error) {
-      console.warn("应用参数设置失败:", error);
+      console.warn("Failed to apply parameter settings:", error);
     }
   },
 
-  // 应用部件设置
+  // Apply part settings
   applyPartSettings(model, partSettings) {
     try {
       const coreModel = model.internalModel.coreModel;
@@ -183,7 +183,7 @@ const StateSyncUtils = {
         coreModel.setPartOpacityById(partId, value);
       });
     } catch (error) {
-      console.warn("应用部件设置失败:", error);
+      console.warn("Failed to apply part settings:", error);
     }
   },
 };
@@ -192,60 +192,60 @@ export class Live2DStateSyncManager {
   constructor() {
     this.syncCallbacks = new Map();
     this.syncTimers = new Map();
-    this.expressionStates = new Map(); // 表情状态
-    this.motionStates = new Map(); // 动作状态
-    this.parameterStates = new Map(); // 参数状态
-    this.partStates = new Map(); // 部件状态
-    this.audioStates = new Map(); // 音频状态
-    this.textStates = new Map(); // 文本状态
+    this.expressionStates = new Map(); // Expression states
+    this.motionStates = new Map(); // Motion states
+    this.parameterStates = new Map(); // Parameter states
+    this.partStates = new Map(); // Part states
+    this.audioStates = new Map(); // Audio states
+    this.textStates = new Map(); // Text states
 
-    // 状态缓存
+    // State cache
     this.stateCache = new Map();
 
-    // 同步配置
-    this.syncInterval = 100; // 同步间隔（毫秒）
+    // Sync configuration
+    this.syncInterval = 100; // Sync interval (milliseconds)
     this.isEnabled = true;
 
-    // 循环同步防护
+    // Circular sync guard
     this.syncInProgress = new Set();
 
-    // 注册到全局资源管理器
+    // Register with global resource manager
     globalResourceManager.registerCleanupCallback(() => this.cleanup());
   }
 
   /**
-   * 注册同步回调
-   * @param {string} modelId - 模型ID
-   * @param {Function} callback - 同步回调函数
+   * Register sync callback
+   * @param {string} modelId - Model ID
+   * @param {Function} callback - Sync callback function
    */
   registerSyncCallback(modelId, callback) {
     this.syncCallbacks.set(modelId, callback);
-    console.log(`📝 [StateSyncManager] 注册同步回调: ${modelId}`);
+    console.log(`📝 [StateSyncManager] Registered sync callback: ${modelId}`);
   }
 
   /**
-   * 注销同步回调
-   * @param {string} modelId - 模型ID
+   * Unregister sync callback
+   * @param {string} modelId - Model ID
    */
   unregisterSyncCallback(modelId) {
     this.syncCallbacks.delete(modelId);
-    console.log(`🗑️ [StateSyncManager] 注销同步回调: ${modelId}`);
+    console.log(`🗑️ [StateSyncManager] Unregistered sync callback: ${modelId}`);
   }
 
   /**
-   * 同步模型状态到UI
-   * @param {string} modelId - 模型ID
-   * @param {Object} model - 模型实例
+   * Sync model state to UI
+   * @param {string} modelId - Model ID
+   * @param {Object} model - Model instance
    */
   syncModelStateToUI(modelId, model) {
     if (!model) {
-      console.warn("⚠️ [StateSyncManager] 模型无效，无法同步状态");
+      console.warn("⚠️ [StateSyncManager] Invalid model, cannot sync state");
       return;
     }
 
     const callback = this.syncCallbacks.get(modelId);
     if (!callback) {
-      console.warn("⚠️ [StateSyncManager] 未找到同步回调:", modelId);
+      console.warn("⚠️ [StateSyncManager] Sync callback not found:", modelId);
       return;
     }
 
@@ -254,25 +254,27 @@ export class Live2DStateSyncManager {
       if (currentState) {
         callback(currentState);
         console.log(
-          "🔄 [StateSyncManager] 模型状态已同步到UI:",
+          "🔄 [StateSyncManager] Model state synced to UI:",
           modelId,
           currentState,
         );
       }
     } catch (error) {
-      console.error("❌ [StateSyncManager] 同步模型状态失败:", error);
+      console.error("❌ [StateSyncManager] Failed to sync model state:", error);
     }
   }
 
   /**
-   * 同步UI设置到模型
-   * @param {string} modelId - 模型ID
-   * @param {Object} model - 模型实例
-   * @param {Object} uiSettings - UI设置
+   * Sync UI settings to model
+   * @param {string} modelId - Model ID
+   * @param {Object} model - Model instance
+   * @param {Object} uiSettings - UI settings
    */
   syncUISettingsToModel(modelId, model, uiSettings) {
     if (!model) {
-      console.warn("⚠️ [StateSyncManager] 模型无效，无法应用UI设置");
+      console.warn(
+        "⚠️ [StateSyncManager] Invalid model, cannot apply UI settings",
+      );
       return false;
     }
 
@@ -280,43 +282,43 @@ export class Live2DStateSyncManager {
       const success = StateSyncUtils.applyUISettings(model, uiSettings);
       if (success) {
         console.log(
-          "✅ [StateSyncManager] UI设置已同步到模型:",
+          "✅ [StateSyncManager] UI settings synced to model:",
           modelId,
           uiSettings,
         );
       }
       return success;
     } catch (error) {
-      console.error("❌ [StateSyncManager] 同步UI设置失败:", error);
+      console.error("❌ [StateSyncManager] Failed to sync UI settings:", error);
       return false;
     }
   }
 
   /**
-   * 批量同步所有模型状态
-   * @param {Map} models - 模型映射
+   * Batch sync all model states
+   * @param {Map} models - Model map
    */
   syncAllModelStates(models) {
     try {
       models.forEach((model, modelId) => {
         this.syncModelStateToUI(modelId, model);
       });
-      console.log("🔄 [StateSyncManager] 所有模型状态已同步");
+      console.log("🔄 [StateSyncManager] All model states synced");
     } catch (error) {
-      console.error("❌ [StateSyncManager] 批量同步失败:", error);
+      console.error("❌ [StateSyncManager] Batch sync failed:", error);
     }
   }
 
   /**
-   * 验证状态一致性
-   * @param {string} modelId - 模型ID
-   * @param {Object} expectedState - 期望状态
-   * @param {Object} actualState - 实际状态
+   * Validate state consistency
+   * @param {string} modelId - Model ID
+   * @param {Object} expectedState - Expected state
+   * @param {Object} actualState - Actual state
    */
   validateStateConsistency(modelId, expectedState, actualState) {
     const inconsistencies = [];
 
-    // 验证参数状态
+    // Validate parameter state
     if (expectedState.parameters && actualState.parameters) {
       Object.entries(expectedState.parameters).forEach(
         ([paramId, expectedValue]) => {
@@ -333,7 +335,7 @@ export class Live2DStateSyncManager {
       );
     }
 
-    // 验证部件状态
+    // Validate part state
     if (expectedState.parts && actualState.parts) {
       Object.entries(expectedState.parts).forEach(([partId, expectedValue]) => {
         const actualValue = actualState.parts[partId];
@@ -350,7 +352,7 @@ export class Live2DStateSyncManager {
 
     if (inconsistencies.length > 0) {
       console.warn(
-        "⚠️ [StateSyncManager] 状态不一致:",
+        "⚠️ [StateSyncManager] State inconsistency:",
         modelId,
         inconsistencies,
       );
@@ -363,25 +365,29 @@ export class Live2DStateSyncManager {
   }
 
   /**
-   * 强制同步状态
-   * @param {string} modelId - 模型ID
-   * @param {Object} model - 模型实例
-   * @param {Object} targetState - 目标状态
+   * Force sync state
+   * @param {string} modelId - Model ID
+   * @param {Object} model - Model instance
+   * @param {Object} targetState - Target state
    */
   forceSyncState(modelId, model, targetState) {
     if (!model || !targetState) {
-      console.warn("⚠️ [StateSyncManager] 模型或目标状态无效");
+      console.warn("⚠️ [StateSyncManager] Model or target state is invalid");
       return false;
     }
 
     try {
-      console.log("🔄 [StateSyncManager] 强制同步状态:", modelId, targetState);
+      console.log(
+        "🔄 [StateSyncManager] Force syncing state:",
+        modelId,
+        targetState,
+      );
 
-      // 应用目标状态
+      // Apply target state
       const success = StateSyncUtils.applyUISettings(model, targetState);
 
       if (success) {
-        // 验证同步结果
+        // Validate sync result
         const actualState = StateSyncUtils.getModelState(model);
         const validation = this.validateStateConsistency(
           modelId,
@@ -390,11 +396,11 @@ export class Live2DStateSyncManager {
         );
 
         if (validation.isConsistent) {
-          console.log("✅ [StateSyncManager] 强制同步成功:", modelId);
+          console.log("✅ [StateSyncManager] Force sync successful:", modelId);
           return true;
         } else {
           console.warn(
-            "⚠️ [StateSyncManager] 强制同步后状态仍不一致:",
+            "⚠️ [StateSyncManager] State still inconsistent after force sync:",
             modelId,
             validation.inconsistencies,
           );
@@ -404,29 +410,29 @@ export class Live2DStateSyncManager {
 
       return false;
     } catch (error) {
-      console.error("❌ [StateSyncManager] 强制同步失败:", error);
+      console.error("❌ [StateSyncManager] Force sync failed:", error);
       return false;
     }
   }
 
   /**
-   * 保存状态到缓存
-   * @param {string} modelId - 模型ID
-   * @param {Object} state - 状态数据
+   * Save state to cache
+   * @param {string} modelId - Model ID
+   * @param {Object} state - State data
    */
   saveStateToCache(modelId, state) {
     this.stateCache.set(modelId, {
       state: structuredClone(state),
       timestamp: Date.now(),
     });
-    console.log("💾 [StateSyncManager] 状态已保存到缓存:", modelId);
+    console.log("💾 [StateSyncManager] State saved to cache:", modelId);
   }
 
   /**
-   * 从缓存恢复状态
-   * @param {string} modelId - 模型ID
-   * @param {Object} model - 模型实例
-   * @returns {boolean} 是否成功恢复
+   * Restore state from cache
+   * @param {string} modelId - Model ID
+   * @param {Object} model - Model instance
+   * @returns {boolean} Whether restoration was successful
    */
   restoreStateFromCache(modelId, model) {
     try {
@@ -435,41 +441,47 @@ export class Live2DStateSyncManager {
         return false;
       }
 
-      console.log("🔄 [StateSyncManager] 从缓存恢复状态:", modelId);
+      console.log("🔄 [StateSyncManager] Restoring state from cache:", modelId);
 
-      // 使用统一工具应用状态，传递cachedData.state而不是整个cachedData对象
+      // Use unified tool to apply state, passing cachedData.state instead of the entire cachedData object
       const success = StateSyncUtils.applyUISettings(model, cachedData.state);
 
       if (success) {
-        console.log("✅ [StateSyncManager] 状态恢复成功:", modelId);
+        console.log(
+          "✅ [StateSyncManager] State restoration successful:",
+          modelId,
+        );
       } else {
-        console.warn("⚠️ [StateSyncManager] 状态恢复失败:", modelId);
+        console.warn(
+          "⚠️ [StateSyncManager] State restoration failed:",
+          modelId,
+        );
       }
 
       return success;
     } catch (error) {
-      console.error("❌ [StateSyncManager] 状态恢复异常:", error);
+      console.error("❌ [StateSyncManager] State restoration error:", error);
       return false;
     }
   }
 
   /**
-   * 清理资源
+   * Clean up resources
    */
   cleanup() {
-    console.log("🧹 [StateSyncManager] 开始清理资源...");
+    console.log("🧹 [StateSyncManager] Starting resource cleanup...");
 
     try {
-      // 清理同步回调
+      // Clean up sync callbacks
       this.syncCallbacks.clear();
 
-      // 清理定时器
+      // Clean up timers
       this.syncTimers.forEach((timerId) => {
         clearTimeout(timerId);
       });
       this.syncTimers.clear();
 
-      // 清理状态缓存
+      // Clean up state caches
       this.stateCache.clear();
       this.expressionStates.clear();
       this.motionStates.clear();
@@ -478,62 +490,64 @@ export class Live2DStateSyncManager {
       this.audioStates.clear();
       this.textStates.clear();
 
-      // 清理循环同步防护
+      // Clean up circular sync guard
       this.syncInProgress.clear();
 
-      console.log("✅ [StateSyncManager] 资源清理完成");
+      console.log("✅ [StateSyncManager] Resource cleanup complete");
     } catch (error) {
-      console.error("❌ [StateSyncManager] 资源清理失败:", error);
+      console.error("❌ [StateSyncManager] Resource cleanup failed:", error);
     }
   }
 
   /**
-   * 与 Live2D Store 集成
-   * @param {Object} live2dStore - Live2D Store 实例
+   * Integrate with Live2D Store
+   * @param {Object} live2dStore - Live2D Store instance
    */
   integrateWithStore(live2dStore) {
     if (!live2dStore) {
-      console.warn("⚠️ [StateSyncManager] Live2D Store 无效");
+      console.warn("⚠️ [StateSyncManager] Live2D Store is invalid");
       return;
     }
 
-    // 注册状态同步回调
+    // Register state sync callback
     this.registerSyncCallback("store", (state) => {
-      // 防止循环同步
+      // Prevent circular sync
       if (this.syncInProgress.has("store")) {
-        console.log("🔄 [StateSyncManager] 跳过循环同步:", "store");
+        console.log("🔄 [StateSyncManager] Skipping circular sync:", "store");
         return;
       }
 
       this.syncInProgress.add("store");
 
       try {
-        // 更新 Store 中的状态
+        // Update state in the Store
         live2dStore.updateModelState(state);
       } catch (error) {
-        console.error("❌ [StateSyncManager] Store 同步失败:", error);
+        console.error("❌ [StateSyncManager] Store sync failed:", error);
       } finally {
         this.syncInProgress.delete("store");
       }
     });
 
-    console.log("✅ [StateSyncManager] 已与 Live2D Store 集成（带循环防护）");
+    console.log(
+      "✅ [StateSyncManager] Integrated with Live2D Store (with circular sync guard)",
+    );
   }
 
   /**
-   * 获取模型状态
-   * @param {Object} model - 模型实例
-   * @returns {Object|null} 模型状态
+   * Get model state
+   * @param {Object} model - Model instance
+   * @returns {Object|null} Model state
    */
   getModelState(model) {
     return StateSyncUtils.getModelState(model);
   }
 }
 
-// 创建全局状态同步管理器实例
+// Create global state sync manager instance
 export const globalStateSyncManager = new Live2DStateSyncManager();
 
-// 注册页面卸载时的清理
+// Register cleanup on page unload
 globalResourceManager.registerGlobalEventListener(
   "state-sync-cleanup",
   "beforeunload",

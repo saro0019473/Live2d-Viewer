@@ -1,43 +1,43 @@
-# 依赖目录
+# Dependencies directory
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# 构建输出
+# Build output
 dist/
 build/
 out/
 dist-electron/
 
-# 环境变量文件
+# Environment variable files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# 日志文件
+# Log files
 *.log
 
-# 运行时数据
+# Runtime data
 pids
 *.pid
 *.seed
 *.pid.lock
 
-# 覆盖率目录
+# Coverage directory
 coverage/
 .nyc_output
 
-# 编辑器目录和文件
+# Editor directories and files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# 操作系统生成的文件
+# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -46,15 +46,15 @@ coverage/
 ehthumbs.db
 Thumbs.db
 
-# 临时文件
+# Temporary files
 *.tmp
 *.temp
 
-# 缓存目录
+# Cache directories
 .cache/
 .parcel-cache/
 
-# Electron 构建文件
+# Electron build files
 *.asar
 *.dmg
 *.exe
@@ -62,8 +62,8 @@ Thumbs.db
 *.rpm
 *.AppImage
 
-# 其他
+# Other
 *.tgz
 *.tar.gz
 
-# *.ogg 
+# *.ogg

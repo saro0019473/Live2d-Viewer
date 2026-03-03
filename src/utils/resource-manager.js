@@ -1,6 +1,6 @@
 /**
- * 资源管理器
- * 统一管理定时器、事件监听器、音频上下文、WebGL上下文等资源
+ * Resource Manager
+ * Centralized management of timers, event listeners, audio contexts, WebGL contexts, and other resources
  */
 
 export class ResourceManager {
@@ -12,11 +12,11 @@ export class ResourceManager {
     this.webglContexts = new Set();
     this.cleanupCallbacks = new Set();
 
-    // 新增：统一的事件监听器管理
+    // Unified event listener management
     this.globalEventListeners = new Map();
     this.modelEventListeners = new Map();
 
-    // 新增：统一的资源清理策略
+    // Unified resource cleanup strategies
     this.cleanupStrategies = {
       timer: (timer) => clearTimeout(timer),
       interval: (interval) => clearInterval(interval),
@@ -50,49 +50,51 @@ export class ResourceManager {
   }
 
   /**
-   * 注册通用资源
-   * @param {string} id - 资源ID
-   * @param {*} resource - 资源实例
-   * @param {Function} cleanupCallback - 清理回调
+   * Register a generic resource
+   * @param {string} id - Resource ID
+   * @param {*} resource - Resource instance
+   * @param {Function} cleanupCallback - Cleanup callback
    */
   registerResource(id, resource, cleanupCallback) {
     if (this.resources.has(id)) {
-      console.warn(`⚠️ [ResourceManager] 资源ID "${id}" 已存在，将覆盖旧资源`);
-      this.cleanupResource(id); // 清理旧资源
+      console.warn(
+        `⚠️ [ResourceManager] Resource ID "${id}" already exists, overwriting old resource`,
+      );
+      this.cleanupResource(id); // Clean up old resource
     }
     this.resources.set(id, { resource, cleanupCallback });
-    console.log(`📝 [ResourceManager] 注册资源: ${id}`);
+    console.log(`📝 [ResourceManager] Registered resource: ${id}`);
   }
 
   /**
-   * 注册定时器
-   * @param {number} timer - 定时器引用
+   * Register a timer
+   * @param {number} timer - Timer reference
    */
   registerTimer(timer) {
     this.timers.add(timer);
   }
 
   /**
-   * 注册事件监听器
-   * @param {string} id - 监听器ID
-   * @param {HTMLElement} element - 元素
-   * @param {string} event - 事件类型
-   * @param {Function} handler - 事件处理函数
+   * Register an event listener
+   * @param {string} id - Listener ID
+   * @param {HTMLElement} element - Element
+   * @param {string} event - Event type
+   * @param {Function} handler - Event handler function
    */
   registerEventListener(id, element, event, handler) {
     if (!this.eventListeners.has(id)) {
       this.eventListeners.set(id, []);
     }
     this.eventListeners.get(id).push({ element, event, handler });
-    console.log(`📝 [ResourceManager] 注册事件监听器: ${id}`);
+    console.log(`📝 [ResourceManager] Registered event listener: ${id}`);
   }
 
   /**
-   * 注册全局事件监听器
-   * @param {string} name - 监听器名称
-   * @param {string} event - 事件类型
-   * @param {Function} handler - 事件处理函数
-   * @param {Object} options - 事件选项
+   * Register a global event listener
+   * @param {string} name - Listener name
+   * @param {string} event - Event type
+   * @param {Function} handler - Event handler function
+   * @param {Object} options - Event options
    */
   registerGlobalEventListener(name, event, handler, options = {}) {
     if (!this.globalEventListeners.has(name)) {
@@ -102,14 +104,16 @@ export class ResourceManager {
     const listener = { event, handler, options };
     this.globalEventListeners.get(name).push(listener);
     window.addEventListener(event, handler, options);
-    console.log(`📝 [ResourceManager] 注册全局事件监听器: ${name} (${event})`);
+    console.log(
+      `📝 [ResourceManager] Registered global event listener: ${name} (${event})`,
+    );
   }
 
   /**
-   * 注册模型事件监听器
-   * @param {string} modelId - 模型ID
-   * @param {string} eventType - 事件类型
-   * @param {Function} handler - 事件处理函数
+   * Register a model event listener
+   * @param {string} modelId - Model ID
+   * @param {string} eventType - Event type
+   * @param {Function} handler - Event handler function
    */
   registerModelEventListener(modelId, eventType, handler) {
     if (!this.modelEventListeners.has(modelId)) {
@@ -119,41 +123,41 @@ export class ResourceManager {
     const listener = { eventType, handler };
     this.modelEventListeners.get(modelId).push(listener);
     console.log(
-      `📝 [ResourceManager] 注册模型事件监听器: ${modelId} (${eventType})`,
+      `📝 [ResourceManager] Registered model event listener: ${modelId} (${eventType})`,
     );
   }
 
   /**
-   * 注册音频上下文
-   * @param {string} id - 音频上下文ID
-   * @param {AudioContext} context - 音频上下文
+   * Register an audio context
+   * @param {string} id - Audio context ID
+   * @param {AudioContext} context - Audio context
    */
   registerAudioContext(id, context) {
     this.audioContexts.add(context);
-    console.log(`📝 [ResourceManager] 注册音频上下文: ${id}`);
+    console.log(`📝 [ResourceManager] Registered audio context: ${id}`);
   }
 
   /**
-   * 注册WebGL上下文
-   * @param {string} id - WebGL上下文ID
-   * @param {WebGLRenderingContext} context - WebGL上下文
+   * Register a WebGL context
+   * @param {string} id - WebGL context ID
+   * @param {WebGLRenderingContext} context - WebGL context
    */
   registerWebGLContext(id, context) {
     this.webglContexts.add(context);
-    console.log(`📝 [ResourceManager] 注册WebGL上下文: ${id}`);
+    console.log(`📝 [ResourceManager] Registered WebGL context: ${id}`);
   }
 
   /**
-   * 注册清理回调
-   * @param {Function} callback - 清理回调函数
+   * Register a cleanup callback
+   * @param {Function} callback - Cleanup callback function
    */
   registerCleanupCallback(callback) {
     this.cleanupCallbacks.add(callback);
   }
 
   /**
-   * 清理指定资源
-   * @param {string} resourceId - 资源ID
+   * Clean up a specific resource
+   * @param {string} resourceId - Resource ID
    */
   cleanupResource(resourceId) {
     const resourceInfo = this.resources.get(resourceId);
@@ -161,10 +165,10 @@ export class ResourceManager {
       try {
         resourceInfo.cleanupCallback(resourceInfo.resource);
         this.resources.delete(resourceId);
-        console.log(`🧹 [ResourceManager] 清理资源: ${resourceId}`);
+        console.log(`🧹 [ResourceManager] Cleaned up resource: ${resourceId}`);
       } catch (error) {
         console.error(
-          `❌ [ResourceManager] 清理资源失败 (${resourceId}):`,
+          `❌ [ResourceManager] Failed to clean up resource (${resourceId}):`,
           error,
         );
       }
@@ -175,8 +179,8 @@ export class ResourceManager {
   }
 
   /**
-   * 清理旧版资源（兼容）
-   * @param {string} resourceId - 资源ID
+   * Clean up legacy resource (backward compatibility)
+   * @param {string} resourceId - Resource ID
    */
   cleanupLegacyResource(resourceId) {
     // This method is a fallback for the old system.
@@ -187,7 +191,7 @@ export class ResourceManager {
   }
 
   /**
-   * 清理所有定时器
+   * Clean up all timers
    */
   cleanupTimers() {
     let cleanedCount = 0;
@@ -196,11 +200,11 @@ export class ResourceManager {
       cleanedCount++;
     });
     this.timers.clear();
-    console.log(`🧹 [ResourceManager] 清理定时器: ${cleanedCount} 个`);
+    console.log(`🧹 [ResourceManager] Cleaned up timers: ${cleanedCount}`);
   }
 
   /**
-   * 清理所有事件监听器
+   * Clean up all event listeners
    */
   cleanupEventListeners() {
     let cleanedCount = 0;
@@ -212,7 +216,7 @@ export class ResourceManager {
           }
         } catch (e) {
           console.warn(
-            `⚠️ [ResourceManager] 清理事件监听器失败 (${key}/${event}):`,
+            `⚠️ [ResourceManager] Failed to clean up event listener (${key}/${event}):`,
             e,
           );
         }
@@ -220,11 +224,13 @@ export class ResourceManager {
       });
     });
     this.eventListeners.clear();
-    console.log(`🧹 [ResourceManager] 清理事件监听器: ${cleanedCount} 个`);
+    console.log(
+      `🧹 [ResourceManager] Cleaned up event listeners: ${cleanedCount}`,
+    );
   }
 
   /**
-   * 清理所有全局事件监听器
+   * Clean up all global event listeners
    */
   cleanupGlobalEventListeners() {
     let cleanedCount = 0;
@@ -241,7 +247,7 @@ export class ResourceManager {
           );
         } catch (e) {
           console.warn(
-            `⚠️ [ResourceManager] 清理全局事件监听器失败 (${name}/${listener.event}):`,
+            `⚠️ [ResourceManager] Failed to clean up global event listener (${name}/${listener.event}):`,
             e,
           );
         }
@@ -249,28 +255,32 @@ export class ResourceManager {
       });
     });
     this.globalEventListeners.clear();
-    console.log(`🧹 [ResourceManager] 清理全局事件监听器: ${cleanedCount} 个`);
+    console.log(
+      `🧹 [ResourceManager] Cleaned up global event listeners: ${cleanedCount}`,
+    );
   }
 
   /**
-   * 清理所有模型事件监听器
+   * Clean up all model event listeners
    */
   cleanupModelEventListeners() {
     let cleanedCount = 0;
     this.modelEventListeners.forEach((listeners, modelId) => {
       listeners.forEach((listener) => {
         console.log(
-          `🧹 [ResourceManager] 清理模型事件监听器: ${modelId} (${listener.eventType})`,
+          `🧹 [ResourceManager] Cleaned up model event listener: ${modelId} (${listener.eventType})`,
         );
         cleanedCount++;
       });
     });
     this.modelEventListeners.clear();
-    console.log(`🧹 [ResourceManager] 清理模型事件监听器: ${cleanedCount} 个`);
+    console.log(
+      `🧹 [ResourceManager] Cleaned up model event listeners: ${cleanedCount}`,
+    );
   }
 
   /**
-   * 清理所有音频上下文
+   * Clean up all audio contexts
    */
   cleanupAudioContexts() {
     let cleanedCount = 0;
@@ -279,11 +289,13 @@ export class ResourceManager {
       cleanedCount++;
     });
     this.audioContexts.clear();
-    console.log(`🧹 [ResourceManager] 清理音频上下文: ${cleanedCount} 个`);
+    console.log(
+      `🧹 [ResourceManager] Cleaned up audio contexts: ${cleanedCount}`,
+    );
   }
 
   /**
-   * 清理所有WebGL上下文
+   * Clean up all WebGL contexts
    */
   cleanupWebGLContexts() {
     let cleanedCount = 0;
@@ -292,11 +304,13 @@ export class ResourceManager {
       cleanedCount++;
     });
     this.webglContexts.clear();
-    console.log(`🧹 [ResourceManager] 清理 WebGL 上下文: ${cleanedCount} 个`);
+    console.log(
+      `🧹 [ResourceManager] Cleaned up WebGL contexts: ${cleanedCount}`,
+    );
   }
 
   /**
-   * 执行所有清理回调
+   * Execute all cleanup callbacks
    */
   executeCleanupCallbacks() {
     let executedCount = 0;
@@ -305,53 +319,58 @@ export class ResourceManager {
         callback();
         executedCount++;
       } catch (error) {
-        console.error("❌ [ResourceManager] 执行清理回调失败:", error);
+        console.error(
+          "❌ [ResourceManager] Failed to execute cleanup callback:",
+          error,
+        );
       }
     });
     this.cleanupCallbacks.clear();
-    console.log(`🧹 [ResourceManager] 执行清理回调: ${executedCount} 个`);
+    console.log(
+      `🧹 [ResourceManager] Executed cleanup callbacks: ${executedCount}`,
+    );
   }
 
   /**
-   * 清理所有资源
+   * Clean up all resources
    */
   cleanupAll() {
-    console.log("🧹 [ResourceManager] 开始清理所有资源...");
+    console.log("🧹 [ResourceManager] Starting cleanup of all resources...");
 
-    // 执行清理回调
+    // Execute cleanup callbacks
     this.executeCleanupCallbacks();
 
-    // 清理定时器
+    // Clean up timers
     this.cleanupTimers();
 
-    // 清理事件监听器
+    // Clean up event listeners
     this.cleanupEventListeners();
 
-    // 清理全局事件监听器
+    // Clean up global event listeners
     this.cleanupGlobalEventListeners();
 
-    // 清理模型事件监听器
+    // Clean up model event listeners
     this.cleanupModelEventListeners();
 
-    // 清理音频上下文
+    // Clean up audio contexts
     this.cleanupAudioContexts();
 
-    // 清理WebGL上下文
+    // Clean up WebGL contexts
     this.cleanupWebGLContexts();
 
-    // 清理其他资源
+    // Clean up other resources
     this.resources.forEach((value, key) => {
       this.cleanupResource(key);
     });
 
     const resourceCount = this.getResourceCount();
     console.log(
-      `🧹 [ResourceManager] 所有资源已清理完成 (资源: ${resourceCount} 个)`,
+      `🧹 [ResourceManager] All resources cleaned up (resources: ${resourceCount})`,
     );
   }
 
   /**
-   * 获取资源统计信息
+   * Get resource statistics
    */
   getResourceCount() {
     return {
@@ -375,16 +394,18 @@ export class ResourceManager {
   }
 
   /**
-   * 向后兼容的获取统计信息方法
-   * @deprecated 使用 getResourceCount() 替代
+   * Backward-compatible method for getting statistics
+   * @deprecated Use getResourceCount() instead
    */
   getStats() {
-    console.warn("⚠️ [ResourceManager] getStats已废弃，请使用getResourceCount");
+    console.warn(
+      "⚠️ [ResourceManager] getStats is deprecated, use getResourceCount instead",
+    );
     return this.getResourceCount();
   }
 
   /**
-   * 检查是否有未清理的资源
+   * Check if there are uncleaned resources
    */
   hasUncleanedResources() {
     const counts = this.getResourceCount();
@@ -392,10 +413,10 @@ export class ResourceManager {
   }
 }
 
-// 创建全局资源管理器实例
+// Create global resource manager instance
 export const globalResourceManager = new ResourceManager();
 
-// 页面卸载时自动清理所有资源
+// Automatically clean up all resources when the page unloads
 window.addEventListener("beforeunload", () => {
   globalResourceManager.cleanupAll();
 });

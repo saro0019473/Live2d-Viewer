@@ -39,5 +39,5 @@ export default {
 </script>
 
 <style scoped>
-/* 可以根据需要添加局部样式 */
+/* Add local styles as needed */
 </style>

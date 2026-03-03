@@ -1,6 +1,6 @@
 /**
- * Live2D Core Manager - 核心管理器
- * 负责PIXI应用初始化、基础设置和生命周期管理
+ * Live2D Core Manager
+ * Responsible for PIXI application initialization, base settings, and lifecycle management
  */
 
 import {
@@ -19,46 +19,46 @@ export class Live2DCoreManager {
   }
 
   /**
-   * 初始化 PIXI 应用和场景
+   * Initialize PIXI application and scene
    */
   async init() {
     try {
-      // 等待 Live2D 库加载
+      // Wait for Live2D library to load
       await waitForLive2D();
 
-      // 清理现有的 viewer
+      // Clean up existing viewer
       const existingViewer = document.getElementById("live2d-canvas");
       if (existingViewer) {
         existingViewer.remove();
       }
 
-      // 创建 PIXI 应用
+      // Create PIXI application
       this.app = this.createPixiApplication();
 
-      // 设置渲染器优化
+      // Set up renderer optimizations
       this.setupRenderer();
 
-      // 设置全局引用
+      // Set global reference
       globalThis.__PIXI_APP__ = this.app;
 
-      // 添加到容器并配置Canvas事件
+      // Add to container and configure canvas events
       this.app.view.setAttribute("id", "live2d-canvas");
       this.app.view.style.pointerEvents = "auto";
       this.app.view.style.touchAction = "none";
       this.app.view.style.userSelect = "none";
       this.container.appendChild(this.app.view);
 
-      // 创建模型容器并设置交互性
+      // Create model container and set interactivity
       this.modelContainer = new window.PIXI.Container();
       this.modelContainer.interactive = true;
       this.modelContainer.interactiveChildren = true;
 
-      // PIXI 7.x 兼容性设置 - 使用dynamic模式以支持containsPoint检测
+      // PIXI 7.x compatibility - use dynamic mode to support containsPoint detection
       if (typeof this.modelContainer.eventMode !== "undefined") {
         this.modelContainer.eventMode = "dynamic";
       }
 
-      // 确保Stage交互性（已在createPixiApplication中设置）
+      // Ensure stage interactivity (already set in createPixiApplication)
       if (typeof this.app.stage.eventMode !== "undefined") {
         this.app.stage.eventMode = "dynamic";
       }
@@ -66,53 +66,53 @@ export class Live2DCoreManager {
       this.app.stage.addChild(this.modelContainer);
 
       this.isInitialized = true;
-      this.logger.log("✅ 初始化完成，使用PIXI事件系统");
+      this.logger.log("✅ Initialization complete, using PIXI event system");
     } catch (error) {
-      this.logger.error("❌ 初始化失败:", error);
+      this.logger.error("❌ Initialization failed:", error);
       throw error;
     }
   }
 
   /**
-   * 创建PIXI应用实例
+   * Create PIXI application instance
    */
   createPixiApplication() {
-    // 根据设备性能动态决定 antialias / resolution / powerPreference
+    // Dynamically determine antialias / resolution / powerPreference based on device performance
     const recommended = getRecommendedSettings();
 
     const app = new window.PIXI.Application({
-      // 基础设置
+      // Base settings
       autoDensity: true,
       resolution: recommended.resolution || window.devicePixelRatio || 1,
       width: this.container.offsetWidth,
       height: this.container.offsetHeight,
 
-      // 性能优化设置（根据设备能力动态调整）
+      // Performance optimization settings (dynamically adjusted based on device capabilities)
       antialias: recommended.antialias ?? true,
       powerPreference: recommended.powerPreference || "high-performance",
       backgroundAlpha: 0,
       clearBeforeRender: true,
       preserveDrawingBuffer: false,
 
-      // WebGL设置
+      // WebGL settings
       forceCanvas: false,
 
-      // 渲染器设置
+      // Renderer settings
       sharedTicker: true,
       sharedLoader: true,
     });
 
     this.logger.log(
-      `📊 设备性能适配: antialias=${recommended.antialias}, resolution=${recommended.resolution}, power=${recommended.powerPreference}`,
+      `📊 Device performance adaptation: antialias=${recommended.antialias}, resolution=${recommended.resolution}, power=${recommended.powerPreference}`,
     );
 
-    // PIXI 7.x 兼容性：手动设置交互性
+    // PIXI 7.x compatibility: manually set interactivity
     if (app.stage) {
-      // 使用PIXI 7.x的交互系统
+      // Use PIXI 7.x interaction system
       app.stage.interactive = true;
       app.stage.interactiveChildren = true;
 
-      // 如果支持新的事件模式，则使用dynamic模式
+      // If new event mode is supported, use dynamic mode
       if (typeof app.stage.eventMode !== "undefined") {
         app.stage.eventMode = "dynamic";
       }
@@ -122,32 +122,32 @@ export class Live2DCoreManager {
   }
 
   /**
-   * 设置渲染器优化
+   * Set up renderer optimizations
    */
   setupRenderer() {
     if (!this.app.renderer) return;
 
-    // 启用批处理
+    // Enable batching
     this.app.renderer.plugins.batch.size = 8192;
 
-    // 设置渲染模式
+    // Set render mode
     this.app.renderer.roundPixels = true;
 
-    // 优化纹理设置 - PIXI 7.x兼容性处理
+    // Optimize texture settings - PIXI 7.x compatibility handling
     if (this.app.renderer.texture) {
-      // 检查MSAA_QUALITY是否可用
+      // Check if MSAA_QUALITY is available
       if (window.PIXI.MSAA_QUALITY) {
         this.app.renderer.texture.multisample = window.PIXI.MSAA_QUALITY.HIGH;
       }
     }
 
-    // 设置ticker性能优化
+    // Set ticker performance optimization
     this.app.ticker.maxFPS = 60;
     this.app.ticker.minFPS = 30;
   }
 
   /**
-   * 更新画布尺寸
+   * Update canvas dimensions
    */
   resize(width, height) {
     if (!this.app) return;
@@ -156,7 +156,7 @@ export class Live2DCoreManager {
   }
 
   /**
-   * 优化PIXI性能设置
+   * Optimize PIXI performance settings
    */
   optimizePerformance(options = {}) {
     if (!this.app) return;
@@ -169,21 +169,21 @@ export class Live2DCoreManager {
       textureGCMode = "auto",
     } = options;
 
-    // 设置FPS限制
+    // Set FPS limits
     this.app.ticker.maxFPS = maxFPS;
     this.app.ticker.minFPS = minFPS;
 
-    // 启用视锥剔除
+    // Enable frustum culling
     if (enableCulling && this.modelContainer) {
       this.modelContainer.cullable = true;
     }
 
-    // 批处理优化
+    // Batch processing optimization
     if (enableBatching && this.app.renderer.plugins.batch) {
       this.app.renderer.plugins.batch.size = 8192;
     }
 
-    // 纹理垃圾回收
+    // Texture garbage collection
     if (this.app.renderer.textureGC) {
       switch (textureGCMode) {
         case "aggressive":
@@ -202,22 +202,22 @@ export class Live2DCoreManager {
   }
 
   /**
-   * 暂停/恢复渲染
+   * Pause/resume rendering
    */
   setPaused(paused) {
     if (!this.app) return;
 
     if (paused) {
       this.app.ticker.stop();
-      this.logger.log("⏸️ 渲染已暂停");
+      this.logger.log("⏸️ Rendering paused");
     } else {
       this.app.ticker.start();
-      this.logger.log("▶️ 渲染已恢复");
+      this.logger.log("▶️ Rendering resumed");
     }
   }
 
   /**
-   * 获取性能统计信息
+   * Get performance statistics
    */
   getPerformanceStats() {
     if (!this.app) return null;
@@ -238,18 +238,18 @@ export class Live2DCoreManager {
   }
 
   /**
-   * 销毁核心管理器
+   * Destroy core manager
    */
   destroy() {
-    this.logger.log("🧹 开始销毁核心管理器");
+    this.logger.log("🧹 Starting core manager destruction");
 
-    // 销毁 PIXI 应用
+    // Destroy PIXI application
     if (this.app) {
       this.app.destroy(true, true);
       this.app = null;
     }
 
-    // 清理容器
+    // Clean up container
     if (this.container && this.container.firstChild) {
       this.container.removeChild(this.container.firstChild);
     }
@@ -257,6 +257,6 @@ export class Live2DCoreManager {
     this.modelContainer = null;
     this.isInitialized = false;
 
-    this.logger.log("🧹 核心管理器已销毁");
+    this.logger.log("🧹 Core manager destroyed");
   }
 }

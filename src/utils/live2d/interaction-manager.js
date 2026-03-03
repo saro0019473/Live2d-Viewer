@@ -1,633 +1,691 @@
 /**
- * Live2D 交互管理器
- * 统一管理模型交互事件
+ * Live2D Interaction Manager
+ * Unified management of model interaction events
  */
 
-import { globalResourceManager } from '../resource-manager.js'
-import { createLogger } from './utils.js'
+import { globalResourceManager } from "../resource-manager.js";
+import { createLogger } from "./utils.js";
 
 export class Live2DInteractionManager {
   constructor(coreManager, modelManager) {
-    this.coreManager = coreManager
-    this.modelManager = modelManager
-    this.logger = createLogger('Live2DInteractionManager')
-    
-    // 交互配置
-    this.isEnabled = true
-    this.isDesktopMode = false
+    this.coreManager = coreManager;
+    this.modelManager = modelManager;
+    this.logger = createLogger("Live2DInteractionManager");
+
+    // Interaction configuration
+    this.isEnabled = true;
+    this.isDesktopMode = false;
     this.zoomSettings = {
       enabled: true,
       step: 0.01,
-      minScale: 0.01, // 新增默认最小缩放
-      maxScale: 5.0   // 新增默认最大缩放
-    }
-    
-    // 事件状态
-    this.isDragging = false
-    this.dragStartPos = { x: 0, y: 0 }
-    this.dragStartModelPos = { x: 0, y: 0 }
-    this.clickThreshold = 5 // 点击判定阈值（像素）
-    
-    // 鼠标跟踪状态
-    this.mousePosition = { x: 0, y: 0 }
-    this.hoveredModel = null
-    
-    // 使用ResourceManager统一管理事件监听器
-    this.globalEventListeners = new Map()
-    
-    // 点击区域配置
-    this.clickAreas = new Map() // 存储每个模型的点击区域配置
-    
-    // 初始化
-    this.initialize()
+      minScale: 0.01, // Default minimum scale
+      maxScale: 5.0, // Default maximum scale
+    };
+
+    // Event state
+    this.isDragging = false;
+    this.dragStartPos = { x: 0, y: 0 };
+    this.dragStartModelPos = { x: 0, y: 0 };
+    this.clickThreshold = 5; // Click detection threshold (pixels)
+
+    // Mouse tracking state
+    this.mousePosition = { x: 0, y: 0 };
+    this.hoveredModel = null;
+
+    // Use ResourceManager for unified event listener management
+    this.globalEventListeners = new Map();
+
+    // Click area configuration
+    this.clickAreas = new Map(); // Store click area config for each model
+
+    // Initialize
+    this.initialize();
   }
 
   /**
-   * 初始化交互管理器
+   * Initialize interaction manager
    */
   initialize() {
     try {
-      // 设置舞台为可交互
-      this.coreManager.app.stage.interactive = true
-      this.coreManager.app.stage.cursor = 'pointer'
+      // Set stage as interactive
+      this.coreManager.app.stage.interactive = true;
+      this.coreManager.app.stage.cursor = "pointer";
 
-      // 绑定全局事件监听器
-      this.bindGlobalEventListeners()
+      // Bind global event listeners
+      this.bindGlobalEventListeners();
     } catch (error) {
-      this.logger.error('❌ 初始化失败:', error)
+      this.logger.error("❌ Initialization failed:", error);
     }
   }
 
   /**
-   * 绑定全局事件监听器
+   * Bind global event listeners
    */
   bindGlobalEventListeners() {
-    // 窗口大小变化监听
+    // Window resize listener
     const resizeHandler = () => {
       if (this.isDesktopMode) {
-        this.updateDesktopModeLayout()
+        this.updateDesktopModeLayout();
       }
-    }
-    
-    globalResourceManager.registerGlobalEventListener(
-      'interaction-resize', 
-      'resize', 
-      resizeHandler
-    )
+    };
 
-    // 滚轮缩放监听器现在由 setWheelZoomEnabled 方法统一管理
-    // 根据当前设置决定是否启用
+    globalResourceManager.registerGlobalEventListener(
+      "interaction-resize",
+      "resize",
+      resizeHandler,
+    );
+
+    // Wheel zoom listener is now managed uniformly by setWheelZoomEnabled
+    // Enable based on current settings
     if (this.zoomSettings.enabled) {
-      this.setWheelZoomEnabled(true)
+      this.setWheelZoomEnabled(true);
     }
   }
 
   /**
-   * 处理滚轮缩放事件
-   * @param {WheelEvent} event - 滚轮事件
+   * Handle wheel zoom event
+   * @param {WheelEvent} event - Wheel event
    */
   handleWheelZoom(event) {
-    if (!this.zoomSettings.enabled) return
+    if (!this.zoomSettings.enabled) return;
 
     try {
-      // 更新鼠标位置
-      this.mousePosition.x = event.clientX
-      this.mousePosition.y = event.clientY
-      
-      // 使用当前悬停的模型进行缩放
+      // Update mouse position
+      this.mousePosition.x = event.clientX;
+      this.mousePosition.y = event.clientY;
+
+      // Zoom the currently hovered model
       if (this.hoveredModel) {
-        const modelId = this.modelManager.getModelId(this.hoveredModel)
-        if (!modelId) return
-        
-        // 获取当前缩放值
-        const currentScale = this.hoveredModel.getScale().x
-        
-        // 计算缩放方向
-        const delta = event.deltaY > 0 ? -1 : 1
-        
-        // 计算新缩放值
-        let newScale = currentScale + (delta * this.zoomSettings.step)
-        
-        // 限制缩放范围
-        newScale = Math.max(this.zoomSettings.minScale, Math.min(this.zoomSettings.maxScale, newScale))
-        
-        // 应用缩放
-        this.hoveredModel.setScale(newScale, newScale)
-        return
+        const modelId = this.modelManager.getModelId(this.hoveredModel);
+        if (!modelId) return;
+
+        // Get current scale value
+        const currentScale = this.hoveredModel.getScale().x;
+
+        // Calculate zoom direction
+        const delta = event.deltaY > 0 ? -1 : 1;
+
+        // Calculate new scale value
+        let newScale = currentScale + delta * this.zoomSettings.step;
+
+        // Clamp scale range
+        newScale = Math.max(
+          this.zoomSettings.minScale,
+          Math.min(this.zoomSettings.maxScale, newScale),
+        );
+
+        // Apply scale
+        this.hoveredModel.setScale(newScale, newScale);
+        return;
       }
-      
-      // 如果没有悬停的模型，尝试使用PIXI的getObjectsUnderPoint
-      const mousePoint = new window.PIXI.Point(this.mousePosition.x, this.mousePosition.y)
-      
-      if (this.coreManager.app.renderer && this.coreManager.app.renderer.getObjectsUnderPoint) {
+
+      // If no hovered model, try using PIXI's getObjectsUnderPoint
+      const mousePoint = new window.PIXI.Point(
+        this.mousePosition.x,
+        this.mousePosition.y,
+      );
+
+      if (
+        this.coreManager.app.renderer &&
+        this.coreManager.app.renderer.getObjectsUnderPoint
+      ) {
         try {
-          const objects = this.coreManager.app.renderer.getObjectsUnderPoint(mousePoint)
+          const objects =
+            this.coreManager.app.renderer.getObjectsUnderPoint(mousePoint);
           if (objects && objects.length > 0) {
-            // 找到最上层的模型对象
+            // Find the topmost model object
             for (const obj of objects) {
-              const models = this.modelManager.getAllModels()
+              const models = this.modelManager.getAllModels();
               for (const model of models) {
-                if (model.model && (model.model === obj || model.model.children.includes(obj))) {
-                  const modelId = this.modelManager.getModelId(model)
-                  
-                  // 获取当前缩放值
-                  const currentScale = model.getScale().x
-                  
-                  // 计算缩放方向
-                  const delta = event.deltaY > 0 ? -1 : 1
-                  
-                  // 计算新缩放值
-                  let newScale = currentScale + (delta * this.zoomSettings.step)
-                  
-                  // 限制缩放范围
-                  newScale = Math.max(this.zoomSettings.minScale, Math.min(this.zoomSettings.maxScale, newScale))
-                  
-                  // 应用缩放
-                  model.setScale(newScale, newScale)
-                  return
+                if (
+                  model.model &&
+                  (model.model === obj || model.model.children.includes(obj))
+                ) {
+                  const modelId = this.modelManager.getModelId(model);
+
+                  // Get current scale value
+                  const currentScale = model.getScale().x;
+
+                  // Calculate zoom direction
+                  const delta = event.deltaY > 0 ? -1 : 1;
+
+                  // Calculate new scale value
+                  let newScale = currentScale + delta * this.zoomSettings.step;
+
+                  // Clamp scale range
+                  newScale = Math.max(
+                    this.zoomSettings.minScale,
+                    Math.min(this.zoomSettings.maxScale, newScale),
+                  );
+
+                  // Apply scale
+                  model.setScale(newScale, newScale);
+                  return;
                 }
               }
             }
           }
         } catch (error) {
-          this.logger.warn('⚠️ getObjectsUnderPoint失败:', error)
+          this.logger.warn("⚠️ getObjectsUnderPoint failed:", error);
         }
       }
     } catch (error) {
-      this.logger.error('❌ 处理滚轮缩放失败:', error)
+      this.logger.error("❌ Failed to handle wheel zoom:", error);
     }
   }
 
   /**
-   * 设置桌宠模式
-   * @param {boolean} enabled - 是否启用桌宠模式
+   * Set desktop pet mode
+   * @param {boolean} enabled - Whether to enable desktop pet mode
    */
   setDesktopMode(enabled) {
-    this.isDesktopMode = enabled
-    
+    this.isDesktopMode = enabled;
+
     if (enabled) {
-      this.updateDesktopModeLayout()
+      this.updateDesktopModeLayout();
     }
   }
 
   /**
-   * 更新桌宠模式布局
+   * Update desktop pet mode layout
    */
   updateDesktopModeLayout() {
-    if (!this.isDesktopMode) return
+    if (!this.isDesktopMode) return;
 
-    const models = this.modelManager.getAllModels()
-    models.forEach(model => {
-      // 桌宠模式下的布局逻辑
-      const position = this.calculateDesktopPosition(model.id)
-      this.setModelPosition(model.id, position.x, position.y)
-    })
+    const models = this.modelManager.getAllModels();
+    models.forEach((model) => {
+      // Layout logic in desktop pet mode
+      const position = this.calculateDesktopPosition(model.id);
+      this.setModelPosition(model.id, position.x, position.y);
+    });
   }
 
   /**
-   * 计算桌宠模式位置
-   * @param {string} modelId - 模型ID
-   * @returns {Object} 位置坐标
+   * Calculate desktop pet mode position
+   * @param {string} modelId - Model ID
+   * @returns {Object} Position coordinates
    */
   calculateDesktopPosition(modelId) {
-    // 简单的桌宠模式位置计算
-    const index = Array.from(this.modelManager.getAllModels().keys()).indexOf(modelId)
-    const spacing = 100
+    // Simple desktop pet mode position calculation
+    const index = Array.from(this.modelManager.getAllModels().keys()).indexOf(
+      modelId,
+    );
+    const spacing = 100;
     return {
       x: 50 + index * spacing,
-      y: window.innerHeight - 200
-    }
+      y: window.innerHeight - 200,
+    };
   }
 
   /**
-   * 设置模型位置
-   * @param {string} modelId - 模型ID
-   * @param {number} x - X坐标
-   * @param {number} y - Y坐标
+   * Set model position
+   * @param {string} modelId - Model ID
+   * @param {number} x - X coordinate
+   * @param {number} y - Y coordinate
    */
   setModelPosition(modelId, x, y) {
-    const model = this.modelManager.getModel(modelId)
-    if (!model) return
+    const model = this.modelManager.getModel(modelId);
+    if (!model) return;
 
-    model.setPosition(x, y)
+    model.setPosition(x, y);
   }
 
   /**
-   * 获取模型位置
-   * @param {string} modelId - 模型ID
-   * @returns {Object} 位置坐标
+   * Get model position
+   * @param {string} modelId - Model ID
+   * @returns {Object} Position coordinates
    */
   getModelPosition(modelId) {
-    const model = this.modelManager.getModel(modelId)
-    if (!model) return { x: 0, y: 0 }
+    const model = this.modelManager.getModel(modelId);
+    if (!model) return { x: 0, y: 0 };
 
-    return model.getPosition()
+    return model.getPosition();
   }
 
   /**
-   * 绑定模型交互事件
-   * @param {string} modelId - 模型ID
-   * @param {Object} model - 模型实例
+   * Bind model interaction events
+   * @param {string} modelId - Model ID
+   * @param {Object} model - Model instance
    */
   bindModelInteractionEvents(modelId, model) {
     if (!model || !model.model) {
-      this.logger.warn('⚠️ 模型无效，无法绑定交互事件:', modelId)
-      return
+      this.logger.warn(
+        "⚠️ Invalid model, cannot bind interaction events:",
+        modelId,
+      );
+      return;
     }
 
-    const pixiModel = model.model
+    const pixiModel = model.model;
 
-    // 设置模型为可交互
-    pixiModel.interactive = true
-    // PIXI 7.x: 使用cursor替代buttonMode
-    pixiModel.cursor = 'pointer'
+    // Set model as interactive
+    pixiModel.interactive = true;
+    // PIXI 7.x: use cursor instead of buttonMode
+    pixiModel.cursor = "pointer";
 
-    // 指针按下事件
+    // Pointer down event
     const pointerDownHandler = (event) => {
-      this.handlePointerDown(modelId, event)
-    }
+      this.handlePointerDown(modelId, event);
+    };
 
-    // 指针移动事件
+    // Pointer move event
     const pointerMoveHandler = (event) => {
-      this.handlePointerMove(modelId, event)
-    }
+      this.handlePointerMove(modelId, event);
+    };
 
-    // 指针抬起事件
+    // Pointer up event
     const pointerUpHandler = (event) => {
-      this.handlePointerUp(modelId, event)
-    }
+      this.handlePointerUp(modelId, event);
+    };
 
-    // 鼠标进入事件
+    // Pointer over event
     const pointerOverHandler = (event) => {
-      this.hoveredModel = model
-    }
+      this.hoveredModel = model;
+    };
 
-    // 鼠标离开事件
+    // Pointer out event
     const pointerOutHandler = (event) => {
       if (this.hoveredModel === model) {
-        this.hoveredModel = null
+        this.hoveredModel = null;
       }
-    }
+    };
 
-    // 注册事件监听器到ResourceManager
-    globalResourceManager.registerModelEventListener(modelId, 'pointerdown', pointerDownHandler)
-    globalResourceManager.registerModelEventListener(modelId, 'pointermove', pointerMoveHandler)
-    globalResourceManager.registerModelEventListener(modelId, 'pointerup', pointerUpHandler)
-    globalResourceManager.registerModelEventListener(modelId, 'pointerover', pointerOverHandler)
-    globalResourceManager.registerModelEventListener(modelId, 'pointerout', pointerOutHandler)
+    // Register event listeners with ResourceManager
+    globalResourceManager.registerModelEventListener(
+      modelId,
+      "pointerdown",
+      pointerDownHandler,
+    );
+    globalResourceManager.registerModelEventListener(
+      modelId,
+      "pointermove",
+      pointerMoveHandler,
+    );
+    globalResourceManager.registerModelEventListener(
+      modelId,
+      "pointerup",
+      pointerUpHandler,
+    );
+    globalResourceManager.registerModelEventListener(
+      modelId,
+      "pointerover",
+      pointerOverHandler,
+    );
+    globalResourceManager.registerModelEventListener(
+      modelId,
+      "pointerout",
+      pointerOutHandler,
+    );
 
-    // 绑定到PIXI模型
-    pixiModel.on('pointerdown', pointerDownHandler)
-    pixiModel.on('pointermove', pointerMoveHandler)
-    pixiModel.on('pointerup', pointerUpHandler)
-    pixiModel.on('pointerover', pointerOverHandler)
-    pixiModel.on('pointerout', pointerOutHandler)
+    // Bind to PIXI model
+    pixiModel.on("pointerdown", pointerDownHandler);
+    pixiModel.on("pointermove", pointerMoveHandler);
+    pixiModel.on("pointerup", pointerUpHandler);
+    pixiModel.on("pointerover", pointerOverHandler);
+    pixiModel.on("pointerout", pointerOutHandler);
   }
 
-
   /**
-   * 处理指针按下事件
-   * @param {string} modelId - 模型ID
-   * @param {Object} event - 事件对象
+   * Handle pointer down event
+   * @param {string} modelId - Model ID
+   * @param {Object} event - Event object
    */
   handlePointerDown(modelId, event) {
-    const model = this.modelManager.getModel(modelId)
-    if (!model) return
+    const model = this.modelManager.getModel(modelId);
+    if (!model) return;
 
-    this.isDragging = true
-    this.dragStartPos = { x: event.data.global.x, y: event.data.global.y }
-    this.dragStartModelPos = model.getPosition()
+    this.isDragging = true;
+    this.dragStartPos = { x: event.data.global.x, y: event.data.global.y };
+    this.dragStartModelPos = model.getPosition();
   }
 
   /**
-   * 处理指针移动事件
-   * @param {string} modelId - 模型ID
-   * @param {Object} event - 事件对象
+   * Handle pointer move event
+   * @param {string} modelId - Model ID
+   * @param {Object} event - Event object
    */
   handlePointerMove(modelId, event) {
-    if (!this.isDragging) return
+    if (!this.isDragging) return;
 
-    const model = this.modelManager.getModel(modelId)
-    if (!model) return
+    const model = this.modelManager.getModel(modelId);
+    if (!model) return;
 
-    const currentPos = { x: event.data.global.x, y: event.data.global.y }
-    const deltaX = currentPos.x - this.dragStartPos.x
-    const deltaY = currentPos.y - this.dragStartPos.y
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+    const currentPos = { x: event.data.global.x, y: event.data.global.y };
+    const deltaX = currentPos.x - this.dragStartPos.x;
+    const deltaY = currentPos.y - this.dragStartPos.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    // 如果移动距离超过阈值，开始拖拽
+    // If movement distance exceeds threshold, start dragging
     if (distance > this.clickThreshold && !this.isDragging) {
-      this.isDragging = true
+      this.isDragging = true;
     }
 
     if (this.isDragging) {
-      const newX = this.dragStartModelPos.x + deltaX
-      const newY = this.dragStartModelPos.y + deltaY
-      model.setPosition(newX, newY)
+      const newX = this.dragStartModelPos.x + deltaX;
+      const newY = this.dragStartModelPos.y + deltaY;
+      model.setPosition(newX, newY);
     }
   }
 
   /**
-   * 处理指针抬起事件
-   * @param {string} modelId - 模型ID
-   * @param {Object} event - 事件对象
+   * Handle pointer up event
+   * @param {string} modelId - Model ID
+   * @param {Object} event - Event object
    */
   handlePointerUp(modelId, event) {
-    const model = this.modelManager.getModel(modelId)
-    if (!model) return
+    const model = this.modelManager.getModel(modelId);
+    if (!model) return;
 
-    const currentPos = { x: event.data.global.x, y: event.data.global.y }
-    const deltaX = currentPos.x - this.dragStartPos.x
-    const deltaY = currentPos.y - this.dragStartPos.y
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+    const currentPos = { x: event.data.global.x, y: event.data.global.y };
+    const deltaX = currentPos.x - this.dragStartPos.x;
+    const deltaY = currentPos.y - this.dragStartPos.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    // 如果移动距离小于阈值，判定为点击
+    // If movement distance is less than threshold, treat as click
     if (distance < this.clickThreshold) {
-      this.handleModelClick(modelId, event)
+      this.handleModelClick(modelId, event);
     }
 
     if (this.isDragging) {
-      this.isDragging = false
+      this.isDragging = false;
     }
   }
 
   /**
-   * 处理模型点击
-   * @param {string} modelId - 模型ID
-   * @param {Object} event - 事件对象
+   * Handle model click
+   * @param {string} modelId - Model ID
+   * @param {Object} event - Event object
    */
   handleModelClick(modelId, event) {
-    const model = this.modelManager.getModel(modelId)
+    const model = this.modelManager.getModel(modelId);
     if (!model) {
-      this.logger.warn('⚠️ 模型未找到:', modelId)
-      return
+      this.logger.warn("⚠️ Model not found:", modelId);
+      return;
     }
 
-    // 获取点击坐标
-    const globalPos = event.data.global
+    // Get click coordinates
+    const globalPos = event.data.global;
 
-    // 转换为模型本地坐标
-    const localPos = this.convertToModelCoordinates(model, globalPos)
+    // Convert to model local coordinates
+    const localPos = this.convertToModelCoordinates(model, globalPos);
 
-    // 检查点击区域
-    const hitArea = this.getHitArea(model, localPos)
+    // Check click areas
+    const hitArea = this.getHitArea(model, localPos);
     if (hitArea) {
-      this.playHitAreaMotion(model, hitArea)
+      this.playHitAreaMotion(model, hitArea);
     } else {
-      this.playRandomMotion(model)
+      this.playRandomMotion(model);
     }
   }
 
   /**
-   * 转换坐标到模型本地坐标系
-   * @param {Object} model - 模型实例
-   * @param {Object} globalPos - 全局坐标
-   * @returns {Object} 本地坐标
+   * Convert coordinates to model local coordinate system
+   * @param {Object} model - Model instance
+   * @param {Object} globalPos - Global coordinates
+   * @returns {Object} Local coordinates
    */
   convertToModelCoordinates(model, globalPos) {
     try {
-      const globalPoint = new window.PIXI.Point(globalPos.x, globalPos.y)
-      const localPoint = model.model.toLocal(globalPoint)
-      
+      const globalPoint = new window.PIXI.Point(globalPos.x, globalPos.y);
+      const localPoint = model.model.toLocal(globalPoint);
+
       return {
         x: localPoint.x,
-        y: localPoint.y
-      }
+        y: localPoint.y,
+      };
     } catch (error) {
-      this.logger.error('❌ 坐标转换失败:', error)
-      return globalPos
+      this.logger.error("❌ Coordinate conversion failed:", error);
+      return globalPos;
     }
   }
 
   /**
-   * 获取点击区域
-   * @param {Object} model - 模型实例
-   * @param {Object} localPos - 本地坐标
-   * @returns {Object|null} 点击区域信息
+   * Get hit area
+   * @param {Object} model - Model instance
+   * @param {Object} localPos - Local coordinates
+   * @returns {Object|null} Hit area information
    */
   getHitArea(model, localPos) {
     try {
-      const hitAreas = this.clickAreas.get(model.id) || []
-      
+      const hitAreas = this.clickAreas.get(model.id) || [];
+
       for (const area of hitAreas) {
         if (this.isPointInArea(localPos, area)) {
-          return area
+          return area;
         }
       }
-      
-      return null
+
+      return null;
     } catch (error) {
-      this.logger.error('❌ 获取命中区域失败:', error)
-      return null
+      this.logger.error("❌ Failed to get hit area:", error);
+      return null;
     }
   }
 
   /**
-   * 检查点是否在区域内
-   * @param {Object} point - 点坐标
-   * @param {Object} area - 区域信息
-   * @returns {boolean} 是否在区域内
+   * Check if a point is within an area
+   * @param {Object} point - Point coordinates
+   * @param {Object} area - Area information
+   * @returns {boolean} Whether the point is within the area
    */
   isPointInArea(point, area) {
     try {
-      return point.x >= area.x && 
-             point.x <= area.x + area.width && 
-             point.y >= area.y && 
-             point.y <= area.y + area.height
+      return (
+        point.x >= area.x &&
+        point.x <= area.x + area.width &&
+        point.y >= area.y &&
+        point.y <= area.y + area.height
+      );
     } catch (error) {
-      this.logger.error('❌ 区域判断失败:', error)
-      return false
+      this.logger.error("❌ Area check failed:", error);
+      return false;
     }
   }
 
   /**
-   * 播放点击区域动作
-   * @param {Object} model - 模型实例
-   * @param {Object} hitArea - 点击区域
+   * Play hit area motion
+   * @param {Object} model - Model instance
+   * @param {Object} hitArea - Hit area
    */
   playHitAreaMotion(model, hitArea) {
-    if (!hitArea.motion) return
+    if (!hitArea.motion) return;
 
     try {
-      const [group, index] = hitArea.motion.split('_')
-      model.playMotion(group, parseInt(index))
+      const [group, index] = hitArea.motion.split("_");
+      model.playMotion(group, parseInt(index));
     } catch (error) {
-      this.logger.error('❌ 播放点击区域动作失败，回退到随机动作:', error)
-      this.playRandomMotion(model)
+      this.logger.error(
+        "❌ Failed to play hit area motion, falling back to random motion:",
+        error,
+      );
+      this.playRandomMotion(model);
     }
   }
 
   /**
-   * 播放随机动作
-   * @param {Object} model - 模型实例
+   * Play random motion
+   * @param {Object} model - Model instance
    */
   playRandomMotion(model) {
     try {
-      model.playRandomMotion()
+      model.playRandomMotion();
     } catch (error) {
-      this.logger.error('❌ 播放随机动作失败:', error)
+      this.logger.error("❌ Failed to play random motion:", error);
     }
   }
 
   /**
-   * 清除模型点击区域
-   * @param {string} modelId - 模型ID
+   * Clear model click areas
+   * @param {string} modelId - Model ID
    */
   clearModelClickAreas(modelId) {
-    this.clickAreas.delete(modelId)
+    this.clickAreas.delete(modelId);
   }
 
   /**
-   * 清理模型事件监听器
-   * @param {string} modelId - 模型ID
+   * Clean up model event listeners
+   * @param {string} modelId - Model ID
    */
   cleanupModelEventListeners(modelId) {
-    const model = this.modelManager.getModel(modelId)
+    const model = this.modelManager.getModel(modelId);
     if (!model || !model.model) {
-      return
+      return;
     }
 
     try {
-      // 移除PIXI事件监听器
-      model.model.off('pointerdown')
-      model.model.off('pointermove')
-      model.model.off('pointerup')
-      model.model.off('pointerover')
-      model.model.off('pointerout')
+      // Remove PIXI event listeners
+      model.model.off("pointerdown");
+      model.model.off("pointermove");
+      model.model.off("pointerup");
+      model.model.off("pointerover");
+      model.model.off("pointerout");
 
-      // 清理悬停状态
+      // Clean up hover state
       if (this.hoveredModel === model) {
-        this.hoveredModel = null
+        this.hoveredModel = null;
       }
 
-      // 从ResourceManager清理
-      globalResourceManager.cleanupResource('modelEventListener', modelId)
+      // Clean up from ResourceManager
+      globalResourceManager.cleanupResource("modelEventListener", modelId);
     } catch (error) {
-      this.logger.error('❌ 清理模型事件监听器失败:', modelId, error)
+      this.logger.error(
+        "❌ Failed to clean up model event listeners:",
+        modelId,
+        error,
+      );
     }
   }
 
   /**
-   * 清理所有事件监听器
+   * Clean up all event listeners
    */
   cleanupAllEventListeners() {
     try {
-      // 清理模型事件监听器
-      globalResourceManager.cleanupModelEventListeners()
+      // Clean up model event listeners
+      globalResourceManager.cleanupModelEventListeners();
 
-      // 清理全局事件监听器
-      globalResourceManager.cleanupResource('globalEventListener', 'interaction-resize')
-      
-      // 清理滚轮事件监听器
-      globalResourceManager.cleanupResource('globalEventListener', 'interaction-wheel')
+      // Clean up global event listeners
+      globalResourceManager.cleanupResource(
+        "globalEventListener",
+        "interaction-resize",
+      );
+
+      // Clean up wheel event listeners
+      globalResourceManager.cleanupResource(
+        "globalEventListener",
+        "interaction-wheel",
+      );
     } catch (error) {
-      this.logger.error('❌ 清理事件监听器失败:', error)
+      this.logger.error("❌ Failed to clean up event listeners:", error);
     }
   }
 
   /**
-   * 销毁交互管理器
+   * Destroy interaction manager
    */
   destroy() {
     try {
-      // 清理所有事件监听器
-      this.cleanupAllEventListeners()
+      // Clean up all event listeners
+      this.cleanupAllEventListeners();
 
-      // 清理点击区域
-      this.clickAreas.clear()
+      // Clean up click areas
+      this.clickAreas.clear();
 
-      // 重置状态
-      this.isDragging = false
-      this.dragStartPos = { x: 0, y: 0 }
-      this.dragStartModelPos = { x: 0, y: 0 }
+      // Reset state
+      this.isDragging = false;
+      this.dragStartPos = { x: 0, y: 0 };
+      this.dragStartModelPos = { x: 0, y: 0 };
     } catch (error) {
-      this.logger.error('❌ 销毁交互管理器失败:', error)
+      this.logger.error("❌ Failed to destroy interaction manager:", error);
     }
   }
 
   /**
-   * 设置滚轮缩放启用状态
-   * @param {boolean} enabled - 是否启用
+   * Set wheel zoom enabled state
+   * @param {boolean} enabled - Whether to enable
    */
   setWheelZoomEnabled(enabled) {
-    this.zoomSettings.enabled = enabled
-    
-    // 获取canvas元素
-    const canvas = this.coreManager?.app?.view
+    this.zoomSettings.enabled = enabled;
+
+    // Get canvas element
+    const canvas = this.coreManager?.app?.view;
     if (!canvas) {
-      this.logger.warn('⚠️ 未找到canvas，无法绑定滚轮缩放')
-      return
+      this.logger.warn("⚠️ Canvas not found, cannot bindwheel zoom");
+      return;
     }
 
     if (enabled) {
-      // 只在canvas上监听滚轮事件
+      // Listen for wheel events only on the canvas
       const wheelHandler = (event) => {
-        event.preventDefault()
-        this.handleWheelZoom(event)
-      }
-      // 先解绑，防止重复
-      canvas.removeEventListener('wheel', this._canvasWheelHandler)
-      canvas.addEventListener('wheel', wheelHandler, { passive: false })
-      this._canvasWheelHandler = wheelHandler
+        event.preventDefault();
+        this.handleWheelZoom(event);
+      };
+      // Unbind first to prevent duplicates
+      canvas.removeEventListener("wheel", this._canvasWheelHandler);
+      canvas.addEventListener("wheel", wheelHandler, { passive: false });
+      this._canvasWheelHandler = wheelHandler;
     } else {
-      // 解绑canvas上的滚轮事件
+      // Unbind wheel events on the canvas
       if (this._canvasWheelHandler) {
-        canvas.removeEventListener('wheel', this._canvasWheelHandler)
-        this._canvasWheelHandler = null
+        canvas.removeEventListener("wheel", this._canvasWheelHandler);
+        this._canvasWheelHandler = null;
       }
     }
   }
 
   /**
-   * 设置交互功能启用状态
-   * @param {boolean} enabled - 是否启用
+   * Set interaction enabled state
+   * @param {boolean} enabled - Whether to enable
    */
   setInteractionEnabled(enabled) {
-    this.isEnabled = enabled
-    
-    // 更新所有模型的交互状态
-    const models = this.modelManager.getAllModels()
-    models.forEach(model => {
+    this.isEnabled = enabled;
+
+    // Update interaction state for all models
+    const models = this.modelManager.getAllModels();
+    models.forEach((model) => {
       if (model.model) {
-        model.model.interactive = enabled
-        model.model.cursor = enabled ? 'pointer' : null
+        model.model.interactive = enabled;
+        model.model.cursor = enabled ? "pointer" : null;
       }
-    })
+    });
   }
 
   /**
-   * 更新缩放设置
-   * @param {Object} settings - 缩放设置对象
-   * @param {number} [settings.minScale] - 最小缩放值
-   * @param {number} [settings.maxScale] - 最大缩放值
-   * @param {number} [settings.zoomSpeed] - 缩放步长
+   * Update zoom settings
+   * @param {Object} settings - Zoom settings object
+   * @param {number} [settings.minScale] - Minimum scale value
+   * @param {number} [settings.maxScale] - Maximum scale value
+   * @param {number} [settings.zoomSpeed] - Zoom step
    */
   updateZoomSettings(settings) {
-    if (!settings) return
+    if (!settings) return;
 
     try {
       if (settings.zoomSpeed !== undefined) {
-        this.zoomSettings.step = Math.max(0.001, Math.min(0.1, settings.zoomSpeed))
+        this.zoomSettings.step = Math.max(
+          0.001,
+          Math.min(0.1, settings.zoomSpeed),
+        );
       }
       if (settings.minScale !== undefined) {
-        this.zoomSettings.minScale = Math.max(0.01, settings.minScale) // 确保最小值为0.01
+        this.zoomSettings.minScale = Math.max(0.01, settings.minScale); // Ensure minimum is 0.01
       }
       if (settings.maxScale !== undefined) {
-        this.zoomSettings.maxScale = Math.min(10.0, settings.maxScale) // 确保最大值为10.0
+        this.zoomSettings.maxScale = Math.min(10.0, settings.maxScale); // Ensure maximum is 10.0
       }
     } catch (error) {
-      this.logger.error('❌ 更新缩放设置失败:', error)
+      this.logger.error("❌ Failed to update zoom settings:", error);
     }
   }
 
   /**
-   * 获取当前缩放设置
-   * @returns {Object} 当前缩放设置
+   * Get current zoom settings
+   * @returns {Object} Current zoom settings
    */
   getZoomSettings() {
-    return { ...this.zoomSettings }
+    return { ...this.zoomSettings };
   }
 }
 
-// 页面卸载时的全局清理已由 state-sync-manager.js 统一处理
-// 移除重复的 beforeunload 事件监听器
+// Global cleanup on page unload is handled uniformly by state-sync-manager.js
+// Removed duplicate beforeunload event listener

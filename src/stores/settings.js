@@ -24,23 +24,23 @@ function debounce(fn, delay) {
 }
 
 export const useSettingsStore = defineStore("settings", () => {
-  // 应用设置
+  // Application settings
   const appSettings = reactive({
     theme: "dark", // 'light', 'dark', 'auto'
     language: "zh-CN",
     autoSave: true,
-    autoSaveInterval: 30000, // 30秒
+    autoSaveInterval: 30000, // 30 seconds
     enableNotifications: true,
     enableSounds: true,
     debugMode: false,
   });
 
-  // 功能模块启用状态
+  // Feature module enable status
   const moduleSettings = reactive({
     enableLive2D: true,
   });
 
-  // 性能设置
+  // Performance settings
   const performanceSettings = reactive({
     maxFPS: 60,
     enableVSync: true,
@@ -51,18 +51,18 @@ export const useSettingsStore = defineStore("settings", () => {
     enableGPUAcceleration: true,
   });
 
-  // 安全设置
+  // Security settings
   const securitySettings = reactive({
     allowExternalConnections: false,
     enableCORS: true,
     maxRequestSize: 10, // MB
     enableRateLimit: true,
     rateLimitRequests: 100,
-    rateLimitWindow: 60000, // 1分钟
+    rateLimitWindow: 60000, // 1 minute
     enableEncryption: false,
   });
 
-  // 开发者设置
+  // Developer settings
   const developerSettings = reactive({
     enableDevTools: false,
     enableConsoleLogging: true,
@@ -72,10 +72,10 @@ export const useSettingsStore = defineStore("settings", () => {
     enableNetworkMonitoring: false,
   });
 
-  // 导入/导出设置
+  // Import/export settings
   const backupSettings = reactive({
     autoBackup: true,
-    backupInterval: 24 * 60 * 60 * 1000, // 24小时
+    backupInterval: 24 * 60 * 60 * 1000, // 24 hours
     maxBackups: 10,
     backupLocation: "local",
     includeUserData: true,
@@ -83,7 +83,7 @@ export const useSettingsStore = defineStore("settings", () => {
     compressBackups: true,
   });
 
-  // 设置版本和元数据
+  // Settings version and metadata
   const settingsMetadata = ref({
     version: "1.0.0",
     lastModified: Date.now(),
@@ -91,10 +91,10 @@ export const useSettingsStore = defineStore("settings", () => {
     configFile: null,
   });
 
-  // 本地存储键名
+  // Local storage key name
   const STORAGE_KEY = "vtuber-app-settings";
 
-  // ── 内部保存（同步写 localStorage） ──────────────────────────
+  // ── Internal save (synchronous write to localStorage) ──────────────────────────
   const _saveSettingsImmediate = () => {
     try {
       const settings = {
@@ -113,9 +113,9 @@ export const useSettingsStore = defineStore("settings", () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
       settingsMetadata.value.lastModified = Date.now();
 
-      console.log("💾 [SettingsStore] 设置已保存到本地存储");
+      console.log("💾 [SettingsStore] Settings saved to local storage");
     } catch (error) {
-      console.error("❌ [SettingsStore] 保存设置失败:", error);
+      console.error("❌ [SettingsStore] Failed to save settings:", error);
     }
   };
 
@@ -128,7 +128,7 @@ export const useSettingsStore = defineStore("settings", () => {
     _debouncedSave();
   };
 
-  // 加载设置
+  // Load settings
   const loadSettings = () => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -160,14 +160,14 @@ export const useSettingsStore = defineStore("settings", () => {
           };
         }
 
-        console.log("⚙️ [SettingsStore] 设置已从本地存储加载");
+        console.log("⚙️ [SettingsStore] Settings loaded from local storage");
       }
     } catch (error) {
-      console.error("❌ [SettingsStore] 加载设置失败:", error);
+      console.error("❌ [SettingsStore] Failed to load settings:", error);
     }
   };
 
-  // 重置设置
+  // Reset settings
   const resetSettings = () => {
     Object.assign(appSettings, {
       theme: "dark",
@@ -233,10 +233,10 @@ export const useSettingsStore = defineStore("settings", () => {
     // be too late because the user might reload right away.
     _debouncedSave.cancel();
     _saveSettingsImmediate();
-    console.log("🔄 [SettingsStore] 设置已重置为默认值");
+    console.log("🔄 [SettingsStore] Settings reset to default values");
   };
 
-  // 导出设置
+  // Export settings
   const exportSettings = () => {
     const settings = {
       appSettings: { ...appSettings },
@@ -264,10 +264,10 @@ export const useSettingsStore = defineStore("settings", () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    console.log("📤 [SettingsStore] 设置已导出");
+    console.log("📤 [SettingsStore] Settings exported");
   };
 
-  // 导入设置
+  // Import settings
   const importSettings = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -276,9 +276,9 @@ export const useSettingsStore = defineStore("settings", () => {
         try {
           const imported = JSON.parse(e.target.result);
 
-          // 验证设置格式
+          // Validate settings format
           if (!imported.appSettings && !imported.moduleSettings) {
-            throw new Error("无效的设置文件格式");
+            throw new Error("Invalid settings file format");
           }
 
           if (imported.appSettings) {
@@ -303,16 +303,16 @@ export const useSettingsStore = defineStore("settings", () => {
           // Immediate flush so imported data is persisted right away
           _debouncedSave.cancel();
           _saveSettingsImmediate();
-          console.log("📥 [SettingsStore] 设置已导入");
+          console.log("📥 [SettingsStore] Settings imported");
           resolve();
         } catch (error) {
-          console.error("❌ [SettingsStore] 导入设置失败:", error);
+          console.error("❌ [SettingsStore] Failed to import settings:", error);
           reject(error);
         }
       };
 
       reader.onerror = () => {
-        reject(new Error("文件读取失败"));
+        reject(new Error("File read failed"));
       };
 
       reader.readAsText(file);
@@ -388,11 +388,11 @@ export const useSettingsStore = defineStore("settings", () => {
     }
   });
 
-  // 初始化时加载设置
+  // Load settings on initialization
   loadSettings();
 
   return {
-    // 状态
+    // State
     appSettings,
     moduleSettings,
     performanceSettings,
@@ -401,7 +401,7 @@ export const useSettingsStore = defineStore("settings", () => {
     backupSettings,
     settingsMetadata,
 
-    // 方法
+    // Methods
     loadSettings,
     saveSettings,
     resetSettings,

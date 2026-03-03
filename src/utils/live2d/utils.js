@@ -1,12 +1,12 @@
 /**
- * Live2D Utils - 工具函数
- * 提供Live2D相关的通用工具函数
+ * Live2D Utils - Utility Functions
+ * Provides general-purpose utility functions related to Live2D
  */
 
 /**
- * 创建一个日志记录器实例
- * @param {string} name - 日志器的名称，将作为前缀显示在日志中
- * @returns {Object} 包含log, warn, error, debug方法的日志对象
+ * Create a logger instance
+ * @param {string} name - The name of the logger, displayed as a prefix in logs
+ * @returns {Object} A log object containing log, warn, error, debug methods
  */
 export function createLogger(name) {
   const prefix = `[${name}]`;
@@ -39,12 +39,12 @@ export function createLogger(name) {
   };
 }
 
-// 为 Live2DUtils 自身创建一个日志器
+// Create a logger for Live2DUtils itself
 const logger = createLogger("Live2DUtils");
 
 /**
- * 等待 Live2D 库加载完成
- * @param {number} timeout - 超时时间（毫秒）
+ * Wait for the Live2D library to finish loading
+ * @param {number} timeout - Timeout in milliseconds
  * @returns {Promise<boolean>}
  */
 export function waitForLive2D(timeout = 10000) {
@@ -61,7 +61,7 @@ export function waitForLive2D(timeout = 10000) {
       if (window.PIXI.live2d.CubismConfig) {
         window.PIXI.live2d.CubismConfig.setOpacityFromMotion = true;
       }
-      logger.log("✅ Live2D 库加载完成");
+      logger.log("✅ Live2D library loaded successfully");
       resolve(true);
     };
 
@@ -93,7 +93,7 @@ export function waitForLive2D(timeout = 10000) {
         onReady();
       } else {
         const error = new Error(
-          "Live2D 库加载超时，请检查 /libs/ 文件夹中的库文件",
+          "Live2D library load timeout, please check the library files in the /libs/ folder",
         );
         logger.error("❌", error.message);
         reject(error);
@@ -103,7 +103,7 @@ export function waitForLive2D(timeout = 10000) {
 }
 
 /**
- * 检查浏览器是否支持 WebGL
+ * Check if the browser supports WebGL
  * @returns {boolean}
  */
 export function checkWebGLSupport() {
@@ -120,7 +120,7 @@ export function checkWebGLSupport() {
     }
     return supported;
   } catch (error) {
-    logger.error("❌ WebGL 支持检查失败:", error);
+    logger.error("❌ WebGL support check failed:", error);
     return false;
   }
 }
@@ -202,7 +202,7 @@ function detectGPURenderer(gl) {
 let _cachedPerformanceLevel = null;
 
 /**
- * 获取设备性能等级
+ * Get the device performance level
  * @returns {string} 'high' | 'medium' | 'low'
  */
 export function getDevicePerformanceLevel() {
@@ -210,13 +210,13 @@ export function getDevicePerformanceLevel() {
     return _cachedPerformanceLevel;
   }
 
-  // 检查硬件并发数
+  // Check hardware concurrency
   const cores = navigator.hardwareConcurrency || 2;
 
-  // 检查内存（如果可用）
+  // Check memory (if available)
   const memory = navigator.deviceMemory || 4;
 
-  // 检查GPU信息（如果可用）
+  // Check GPU info (if available)
   let gpuTier = "unknown";
   const renderer = withTemporaryGL((gl) => detectGPURenderer(gl)) || "";
 
@@ -248,7 +248,7 @@ export function getDevicePerformanceLevel() {
     logger.debug("🖥️ GPU renderer not available, using heuristics only");
   }
 
-  // 综合判断性能等级
+  // Determine overall performance level
   if (cores >= 8 && memory >= 8 && gpuTier === "high") {
     _cachedPerformanceLevel = "high";
   } else if (cores >= 4 && memory >= 4 && gpuTier !== "low") {
@@ -265,8 +265,8 @@ export function getDevicePerformanceLevel() {
 }
 
 /**
- * 获取推荐的性能设置
- * @param {string} performanceLevel - 性能等级
+ * Get recommended performance settings
+ * @param {string} performanceLevel - Performance level
  * @returns {Object}
  */
 export function getRecommendedSettings(performanceLevel = null) {
@@ -309,9 +309,9 @@ export function getRecommendedSettings(performanceLevel = null) {
 }
 
 /**
- * 防抖函数
- * @param {Function} func - 要防抖的函数
- * @param {number} wait - 等待时间
+ * Debounce function
+ * @param {Function} func - The function to debounce
+ * @param {number} wait - Wait time
  * @returns {Function}
  */
 export function debounce(func, wait) {
@@ -327,9 +327,9 @@ export function debounce(func, wait) {
 }
 
 /**
- * 节流函数
- * @param {Function} func - 要节流的函数
- * @param {number} limit - 限制时间
+ * Throttle function
+ * @param {Function} func - The function to throttle
+ * @param {number} limit - Limit time
  * @returns {Function}
  */
 export function throttle(func, limit) {
@@ -344,8 +344,8 @@ export function throttle(func, limit) {
 }
 
 /**
- * 生成唯一ID
- * @param {string} prefix - 前缀
+ * Generate a unique ID
+ * @param {string} prefix - Prefix
  * @returns {string}
  */
 export function generateUniqueId(prefix = "live2d") {
@@ -353,8 +353,8 @@ export function generateUniqueId(prefix = "live2d") {
 }
 
 /**
- * 深度克隆对象
- * @param {any} obj - 要克隆的对象
+ * Deep clone an object
+ * @param {any} obj - The object to clone
  * @returns {any}
  */
 export function deepClone(obj) {
@@ -373,8 +373,8 @@ export function deepClone(obj) {
 }
 
 /**
- * 检查URL是否有效
- * @param {string} url - 要检查的URL
+ * Check if a URL is valid
+ * @param {string} url - The URL to check
  * @returns {boolean}
  */
 export function isValidUrl(url) {
@@ -387,13 +387,13 @@ export function isValidUrl(url) {
 }
 
 /**
- * 从URL中提取文件名
- * @param {string} url - URL字符串
- * @param {boolean} removeExtension - 是否移除扩展名
+ * Extract filename from a URL
+ * @param {string} url - URL string
+ * @param {boolean} removeExtension - Whether to remove the extension
  * @returns {string}
  */
 export function extractFilenameFromUrl(url, removeExtension = true) {
-  if (!url || typeof url !== "string") return "未知文件";
+  if (!url || typeof url !== "string") return "Unknown file";
 
   try {
     const urlParts = url.split("/");
@@ -403,17 +403,17 @@ export function extractFilenameFromUrl(url, removeExtension = true) {
       filename = filename.replace(/\.(model3\.json|moc3|png|jpg|jpeg)$/i, "");
     }
 
-    return filename || "未知文件";
+    return filename || "Unknown file";
   } catch (error) {
-    logger.error("❌ 提取文件名失败:", error);
-    return "未知文件";
+    logger.error("❌ Failed to extract filename:", error);
+    return "Unknown file";
   }
 }
 
 /**
- * 计算两点之间的距离
- * @param {Object} point1 - 点1 {x, y}
- * @param {Object} point2 - 点2 {x, y}
+ * Calculate the distance between two points
+ * @param {Object} point1 - Point 1 {x, y}
+ * @param {Object} point2 - Point 2 {x, y}
  * @returns {number}
  */
 export function calculateDistance(point1, point2) {
@@ -423,10 +423,10 @@ export function calculateDistance(point1, point2) {
 }
 
 /**
- * 限制数值在指定范围内
- * @param {number} value - 数值
- * @param {number} min - 最小值
- * @param {number} max - 最大值
+ * Clamp a value within a specified range
+ * @param {number} value - The value
+ * @param {number} min - Minimum value
+ * @param {number} max - Maximum value
  * @returns {number}
  */
 export function clamp(value, min, max) {
@@ -434,10 +434,10 @@ export function clamp(value, min, max) {
 }
 
 /**
- * 线性插值
- * @param {number} start - 起始值
- * @param {number} end - 结束值
- * @param {number} t - 插值参数 (0-1)
+ * Linear interpolation
+ * @param {number} start - Start value
+ * @param {number} end - End value
+ * @param {number} t - Interpolation parameter (0-1)
  * @returns {number}
  */
 export function lerp(start, end, t) {
@@ -445,8 +445,8 @@ export function lerp(start, end, t) {
 }
 
 /**
- * 获取随机数组元素
- * @param {Array} array - 数组
+ * Get a random array element
+ * @param {Array} array - The array
  * @returns {any}
  */
 export function getRandomArrayElement(array) {
