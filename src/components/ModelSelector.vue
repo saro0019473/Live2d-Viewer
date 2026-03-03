@@ -695,14 +695,12 @@
 
 <script>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useMessage, NEllipsis } from "naive-ui";
+
 import { useLive2DStore } from "../stores/live2d";
 
 export default {
     name: "ModelSelector",
-    components: {
-        NEllipsis,
-    },
+    components: {},
     emits: ["model-selected", "model-configure"],
     setup(_, { emit }) {
         const live2dStore = useLive2DStore();

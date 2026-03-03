@@ -325,7 +325,7 @@
 
 <script>
 import { ref, computed, h, onMounted } from "vue";
-import { darkTheme, NSplit, NDialogProvider } from "naive-ui";
+import { darkTheme } from "naive-ui";
 import Live2DViewer from "./components/Live2DViewer.vue";
 import ModelSelector from "./components/ModelSelector.vue";
 import ModelSettings from "./components/ModelSettings.vue";
@@ -343,8 +343,6 @@ export default {
         ModelSettings,
         CanvasSettings,
         ErrorBoundary,
-        NSplit,
-        NDialogProvider,
     },
     setup() {
         const live2dViewer = ref(null);

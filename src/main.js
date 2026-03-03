@@ -10,96 +10,6 @@ import { globalStateSyncManager } from "./utils/live2d/state-sync-manager.js";
 // Import debug configuration
 import { initDebugConfig } from "./config/debug.js";
 
-// Naive UI
-import {
-  create,
-  // Components
-  NConfigProvider,
-  NLayout,
-  NLayoutHeader,
-  NLayoutSider,
-  NLayoutContent,
-  NMenu,
-  NCard,
-  NButton,
-  NSelect,
-  NSlider,
-  NSwitch,
-  NInputNumber,
-  NColorPicker,
-  NForm,
-  NFormItem,
-  NSpin,
-  NMessageProvider,
-  NModal,
-  NPopconfirm,
-  NGrid,
-  NGridItem,
-  NSpace,
-  NDivider,
-  NIcon,
-  NTooltip,
-  NCollapse,
-  NCollapseItem,
-  NTabs,
-  NTabPane,
-  NTag,
-  NInput,
-  NInputGroup,
-  NButtonGroup,
-  NText,
-  NList,
-  NListItem,
-  NThing,
-  NEmpty,
-  NScrollbar,
-  darkTheme,
-} from "naive-ui";
-
-const naive = create({
-  components: [
-    NConfigProvider,
-    NLayout,
-    NLayoutHeader,
-    NLayoutSider,
-    NLayoutContent,
-    NMenu,
-    NCard,
-    NButton,
-    NSelect,
-    NSlider,
-    NSwitch,
-    NInputNumber,
-    NColorPicker,
-    NForm,
-    NFormItem,
-    NSpin,
-    NMessageProvider,
-    NModal,
-    NPopconfirm,
-    NGrid,
-    NGridItem,
-    NSpace,
-    NDivider,
-    NIcon,
-    NTooltip,
-    NCollapse,
-    NCollapseItem,
-    NTabs,
-    NTabPane,
-    NTag,
-    NInput,
-    NInputGroup,
-    NButtonGroup,
-    NText,
-    NList,
-    NListItem,
-    NThing,
-    NEmpty,
-    NScrollbar,
-  ],
-});
-
 function mountApp() {
   // Create app instance
   const app = createApp(App);
@@ -107,8 +17,8 @@ function mountApp() {
   // Use Pinia state management
   app.use(createPinia());
 
-  // Use Naive UI
-  app.use(naive);
+  // Naive UI components are now auto-imported via unplugin-vue-components
+  // with NaiveUiResolver — no manual registration needed.
 
   // Mount app
   app.mount("#app");

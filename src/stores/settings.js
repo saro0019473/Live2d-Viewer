@@ -1,5 +1,27 @@
 import { defineStore } from "pinia";
-import { ref, reactive, watch } from "vue";
+import { ref, reactive, watch, onScopeDispose } from "vue";
+
+/**
+ * Debounce helper — returns a debounced version of `fn`.
+ * The returned function also exposes `.cancel()` for cleanup.
+ */
+function debounce(fn, delay) {
+  let timer = null;
+  const debounced = (...args) => {
+    if (timer !== null) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, delay);
+  };
+  debounced.cancel = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+  return debounced;
+}
 
 export const useSettingsStore = defineStore("settings", () => {
   // 应用设置
@@ -72,6 +94,40 @@ export const useSettingsStore = defineStore("settings", () => {
   // 本地存储键名
   const STORAGE_KEY = "vtuber-app-settings";
 
+  // ── 内部保存（同步写 localStorage） ──────────────────────────
+  const _saveSettingsImmediate = () => {
+    try {
+      const settings = {
+        appSettings: { ...appSettings },
+        moduleSettings: { ...moduleSettings },
+        performanceSettings: { ...performanceSettings },
+        securitySettings: { ...securitySettings },
+        developerSettings: { ...developerSettings },
+        backupSettings: { ...backupSettings },
+        settingsMetadata: {
+          ...settingsMetadata.value,
+          lastModified: Date.now(),
+        },
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      settingsMetadata.value.lastModified = Date.now();
+
+      console.log("💾 [SettingsStore] 设置已保存到本地存储");
+    } catch (error) {
+      console.error("❌ [SettingsStore] 保存设置失败:", error);
+    }
+  };
+
+  // Debounced save — coalesces rapid changes into one write (500 ms)
+  const _debouncedSave = debounce(_saveSettingsImmediate, 500);
+
+  // Public API keeps backward-compat name; callers that truly need
+  // an immediate flush (reset / import) use `_saveSettingsImmediate`.
+  const saveSettings = () => {
+    _debouncedSave();
+  };
+
   // 加载设置
   const loadSettings = () => {
     try {
@@ -79,7 +135,6 @@ export const useSettingsStore = defineStore("settings", () => {
       if (stored) {
         const parsed = JSON.parse(stored);
 
-        // 合并设置，保持默认值
         if (parsed.appSettings) {
           Object.assign(appSettings, parsed.appSettings);
         }
@@ -112,34 +167,8 @@ export const useSettingsStore = defineStore("settings", () => {
     }
   };
 
-  // 保存设置
-  const saveSettings = () => {
-    try {
-      const settings = {
-        appSettings: { ...appSettings },
-        moduleSettings: { ...moduleSettings },
-        performanceSettings: { ...performanceSettings },
-        securitySettings: { ...securitySettings },
-        developerSettings: { ...developerSettings },
-        backupSettings: { ...backupSettings },
-        settingsMetadata: {
-          ...settingsMetadata.value,
-          lastModified: Date.now(),
-        },
-      };
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      settingsMetadata.value.lastModified = Date.now();
-
-      console.log("💾 [SettingsStore] 设置已保存到本地存储");
-    } catch (error) {
-      console.error("❌ [SettingsStore] 保存设置失败:", error);
-    }
-  };
-
   // 重置设置
   const resetSettings = () => {
-    // 重置为默认值
     Object.assign(appSettings, {
       theme: "dark",
       language: "zh-CN",
@@ -200,7 +229,10 @@ export const useSettingsStore = defineStore("settings", () => {
       configFile: null,
     };
 
-    saveSettings();
+    // Reset needs an immediate flush — the watch debounce would
+    // be too late because the user might reload right away.
+    _debouncedSave.cancel();
+    _saveSettingsImmediate();
     console.log("🔄 [SettingsStore] 设置已重置为默认值");
   };
 
@@ -249,7 +281,6 @@ export const useSettingsStore = defineStore("settings", () => {
             throw new Error("无效的设置文件格式");
           }
 
-          // 导入设置
           if (imported.appSettings) {
             Object.assign(appSettings, imported.appSettings);
           }
@@ -268,7 +299,10 @@ export const useSettingsStore = defineStore("settings", () => {
           if (imported.backupSettings) {
             Object.assign(backupSettings, imported.backupSettings);
           }
-          saveSettings();
+
+          // Immediate flush so imported data is persisted right away
+          _debouncedSave.cancel();
+          _saveSettingsImmediate();
           console.log("📥 [SettingsStore] 设置已导入");
           resolve();
         } catch (error) {
@@ -285,52 +319,39 @@ export const useSettingsStore = defineStore("settings", () => {
     });
   };
 
-  // 更新特定设置
+  // ── Update helpers ──────────────────────────────────────────
+  // They only mutate the reactive object. The deep-watch (below)
+  // handles the debounced save — no manual saveSettings() needed.
   const updateAppSettings = (newSettings) => {
     Object.assign(appSettings, newSettings);
-    if (appSettings.autoSave) {
-      saveSettings();
-    }
   };
 
   const updateModuleSettings = (newSettings) => {
     Object.assign(moduleSettings, newSettings);
-    if (appSettings.autoSave) {
-      saveSettings();
-    }
   };
 
   const updatePerformanceSettings = (newSettings) => {
     Object.assign(performanceSettings, newSettings);
-    if (appSettings.autoSave) {
-      saveSettings();
-    }
   };
 
   const updateSecuritySettings = (newSettings) => {
     Object.assign(securitySettings, newSettings);
-    if (appSettings.autoSave) {
-      saveSettings();
-    }
   };
 
   const updateDeveloperSettings = (newSettings) => {
     Object.assign(developerSettings, newSettings);
-    if (appSettings.autoSave) {
-      saveSettings();
-    }
   };
 
   const updateBackupSettings = (newSettings) => {
     Object.assign(backupSettings, newSettings);
-    if (appSettings.autoSave) {
-      saveSettings();
-    }
   };
 
-  // 自动保存监听
+  // ── Auto-save: single debounced deep-watch ─────────────────
+  // This is the ONLY automatic persistence path. The `updateXxx`
+  // methods above just mutate state and let this watch handle it.
+  let _autoSaveInterval = null;
+
   if (typeof window !== "undefined") {
-    // 监听设置变化，自动保存
     watch(
       [
         appSettings,
@@ -342,19 +363,30 @@ export const useSettingsStore = defineStore("settings", () => {
       ],
       () => {
         if (appSettings.autoSave) {
-          saveSettings();
+          _debouncedSave();
         }
       },
       { deep: true },
     );
 
-    // 定期自动保存
-    setInterval(() => {
+    // Periodic backup save — as a safety net, not the primary
+    // persistence path. Uses the immediate variant so it is not
+    // coalesced away by the debounce timer.
+    _autoSaveInterval = setInterval(() => {
       if (appSettings.autoSave) {
-        saveSettings();
+        _saveSettingsImmediate();
       }
     }, appSettings.autoSaveInterval);
   }
+
+  // ── Cleanup on scope dispose (prevents interval leak) ──────
+  onScopeDispose(() => {
+    _debouncedSave.cancel();
+    if (_autoSaveInterval !== null) {
+      clearInterval(_autoSaveInterval);
+      _autoSaveInterval = null;
+    }
+  });
 
   // 初始化时加载设置
   loadSettings();

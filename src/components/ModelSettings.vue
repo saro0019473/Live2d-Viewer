@@ -1008,7 +1008,7 @@ import {
     onMounted,
     onUnmounted,
 } from "vue";
-import { useMessage } from "naive-ui";
+
 import { useLive2DStore } from "../stores/live2d";
 import { globalStateSyncManager } from "../utils/live2d/state-sync-manager.js";
 import { globalResourceManager } from "../utils/resource-manager.js";

@@ -42,7 +42,14 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, nextTick, computed } from "vue";
+import {
+    ref,
+    onMounted,
+    onUnmounted,
+    nextTick,
+    computed,
+    shallowRef,
+} from "vue";
 import { useLive2DStore } from "../stores/live2d";
 import { Live2DManager } from "../utils/live2d/index.js";
 
@@ -79,6 +86,12 @@ export default {
         const viewerContainer = ref(null);
         const live2dStore = useLive2DStore();
         let live2dManager = null;
+
+        // ResizeObserver for responsive canvas
+        let resizeObserver = null;
+
+        // Visibility-based render pausing
+        let visibilityHandler = null;
 
         // 检查是否桌宠模式
         const isPetMode = () => {
@@ -782,6 +795,60 @@ export default {
 
         onMounted(() => {
             initLive2D().then(() => {
+                // ── ResizeObserver: auto-resize PIXI renderer on container resize ──
+                if (viewerContainer.value && live2dManager?.coreManager?.app) {
+                    const debounceResize = (() => {
+                        let timer = null;
+                        return (fn, delay) => {
+                            if (timer) clearTimeout(timer);
+                            timer = setTimeout(fn, delay);
+                        };
+                    })();
+
+                    resizeObserver = new ResizeObserver((entries) => {
+                        debounceResize(() => {
+                            for (const entry of entries) {
+                                const { width, height } = entry.contentRect;
+                                if (
+                                    width > 0 &&
+                                    height > 0 &&
+                                    live2dManager?.coreManager?.app
+                                ) {
+                                    live2dManager.coreManager.resize(
+                                        width,
+                                        height,
+                                    );
+                                    log(
+                                        `📐 Canvas resized to ${Math.round(width)}×${Math.round(height)}`,
+                                        "debug",
+                                    );
+                                }
+                            }
+                        }, 150);
+                    });
+                    resizeObserver.observe(viewerContainer.value);
+                    log("📐 ResizeObserver attached to viewer container");
+                }
+
+                // ── Page Visibility: pause ticker when tab is hidden ──
+                visibilityHandler = () => {
+                    const app = live2dManager?.coreManager?.app;
+                    if (!app) return;
+
+                    if (document.hidden) {
+                        app.ticker.stop();
+                        log("⏸️ Tab hidden — PIXI ticker paused", "debug");
+                    } else {
+                        app.ticker.start();
+                        log("▶️ Tab visible — PIXI ticker resumed", "debug");
+                    }
+                };
+                document.addEventListener(
+                    "visibilitychange",
+                    visibilityHandler,
+                );
+                log("👁️ Visibility change listener registered");
+
                 // 全局挂载live2dManager主要方法
                 if (live2dManager) {
                     window.live2d = {
@@ -1239,13 +1306,34 @@ export default {
                         globalResourceManager.getResourceCount(),
                     );
                 }
-            });
-        });
+            }); // end initLive2D().then()
+        }); // end onMounted()
 
         onUnmounted(() => {
             console.log("🧹 [Live2DViewer] 组件卸载，开始清理Live2D管理器");
 
             try {
+                // 0a. Disconnect ResizeObserver
+                if (resizeObserver) {
+                    resizeObserver.disconnect();
+                    resizeObserver = null;
+                    console.log(
+                        "🧹 [Live2DViewer] ResizeObserver disconnected",
+                    );
+                }
+
+                // 0b. Remove visibility change listener
+                if (visibilityHandler) {
+                    document.removeEventListener(
+                        "visibilitychange",
+                        visibilityHandler,
+                    );
+                    visibilityHandler = null;
+                    console.log(
+                        "🧹 [Live2DViewer] Visibility change listener removed",
+                    );
+                }
+
                 // 1. 清理桌宠模式资源
                 if (petMode.value) {
                     console.log("🧹 [Live2DViewer] 清理桌宠模式资源...");
@@ -1323,9 +1411,8 @@ export default {
                 // 5. 清理状态同步管理器
                 try {
                     if (globalStateSyncManager) {
-                        // 直接使用导入的 globalStateSyncManager
-                        globalStateSyncManager.destroy();
-                        // 不需要 delete window.globalStateSyncManager，因为它不是挂载在 window 上的
+                        // globalStateSyncManager exposes cleanup(), not destroy()
+                        globalStateSyncManager.cleanup();
                         console.log("🧹 [Live2DViewer] 状态同步管理器已清理");
                     }
                 } catch (error) {
