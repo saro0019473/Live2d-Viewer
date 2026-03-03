@@ -2427,6 +2427,6 @@ export default {
 }
 
 :deep(.motion-control-collapse .n-collapse-item__header) {
-    display: block;
+    display: flex;
 }
 </style>
