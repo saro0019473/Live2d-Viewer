@@ -834,6 +834,40 @@ export class HeroModel {
   }
 
   /**
+   * Get the base URL of the model (directory containing the model settings file)
+   * @returns {string|null} Base URL
+   */
+  getModelBaseUrl() {
+    const url = this.cubismModelSettings?.url || this.rawModelSettings?.url;
+    if (!url) return null;
+    // Remove the filename to get the directory path
+    const lastSlash = url.lastIndexOf("/");
+    return lastSlash >= 0 ? url.substring(0, lastSlash + 1) : "./";
+  }
+
+  /**
+   * Get the audio URL for a specific motion
+   * @param {string} group - Motion group name
+   * @param {number} index - Motion index within the group
+   * @returns {string|null} Resolved audio URL, or null if no audio
+   */
+  getMotionAudioUrl(group, index) {
+    const motionGroup = this.cachedMotions[group];
+    if (!motionGroup || !motionGroup[index]) return null;
+
+    const motion = motionGroup[index];
+    // Live2D models use "Sound" or "Audio" field for audio file path
+    const audioPath = motion.Sound || motion.Audio;
+    if (!audioPath) return null;
+
+    const baseUrl = this.getModelBaseUrl();
+    if (!baseUrl) return null;
+
+    // Resolve relative path against the model base URL
+    return new URL(audioPath, baseUrl).href;
+  }
+
+  /**
    * Get motion data
    */
   getMotions() {

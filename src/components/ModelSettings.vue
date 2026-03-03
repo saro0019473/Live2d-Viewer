@@ -199,6 +199,9 @@
                                                         currentHeroModel.model.audioEnabled =
                                                             val;
                                                     }
+                                                    if (!val) {
+                                                        stopMotionAudio();
+                                                    }
                                                 }
                                             "
                                             @update:model-value="
@@ -749,7 +752,10 @@
 
                                                     <n-space size="small">
                                                         <n-tag
-                                                            v-if="motion.Audio"
+                                                            v-if="
+                                                                motion.Audio ||
+                                                                motion.Sound
+                                                            "
                                                             size="tiny"
                                                             type="warning"
                                                         >
@@ -1634,13 +1640,19 @@ export default {
         const playMotion = (group, index, motion) => {
             if (!currentHeroModel.value) return;
 
-            // Stop current motion
+            // Stop current motion and audio
             if (isMotionPlaying.value) {
                 currentHeroModel.value.model.stopMotions();
             }
+            stopMotionAudio();
 
             // Play new motion
             currentHeroModel.value.playMotion(group, index);
+
+            // Play associated audio if enabled
+            if (modelSettings.enableAudio) {
+                playMotionAudio(group, index, motion);
+            }
 
             // Update state
             isMotionPlaying.value = true;
@@ -1657,10 +1669,191 @@ export default {
             syncSettingsToStore();
         };
 
+        // Current audio player instance for motion audio
+        let currentMotionAudio = null;
+
+        /**
+         * Play audio associated with a motion
+         * Resolves the audio path (Sound or Audio field) relative to the model base URL
+         */
+        // Keeps track of the Blob URL so we can revoke it when done
+        let currentMotionAudioBlobUrl = null;
+
+        const playMotionAudio = async (group, index, motion) => {
+            try {
+                if (!currentHeroModel.value) return;
+
+                // Get audio path from motion data (Live2D uses "Sound" or "Audio" field)
+                const audioPath = motion?.Sound || motion?.Audio;
+                if (!audioPath) return;
+
+                // Resolve the audio URL relative to the model settings file URL
+                const heroModel = currentHeroModel.value;
+                let audioUrl = null;
+
+                // Try using the HeroModel helper if available
+                if (heroModel.getMotionAudioUrl) {
+                    audioUrl = heroModel.getMotionAudioUrl(group, index);
+                }
+
+                // Fallback: manually resolve relative to model base URL
+                if (!audioUrl) {
+                    const settingsUrl =
+                        heroModel.cubismModelSettings?.url ||
+                        heroModel.rawModelSettings?.url;
+                    if (settingsUrl) {
+                        const lastSlash = settingsUrl.lastIndexOf("/");
+                        const baseUrl =
+                            lastSlash >= 0
+                                ? settingsUrl.substring(0, lastSlash + 1)
+                                : "./";
+                        audioUrl = new URL(audioPath, baseUrl).href;
+                    }
+                }
+
+                if (!audioUrl) return;
+
+                // Stop any previously playing motion audio
+                stopMotionAudio();
+
+                // Determine if the URL is cross-origin so we can work around CORS
+                let isCrossOrigin = false;
+                try {
+                    const urlObj = new URL(audioUrl, window.location.href);
+                    isCrossOrigin = urlObj.origin !== window.location.origin;
+                } catch (_) {
+                    // If URL parsing fails treat it as same-origin
+                }
+
+                if (isCrossOrigin) {
+                    // Fetch the audio as a blob to bypass CORS / COEP restrictions
+                    // Using no-cors as a last-resort fallback is useless (opaque response),
+                    // so we try "cors" first; if the server doesn't allow it we catch the error.
+                    try {
+                        const resp = await fetch(audioUrl, {
+                            mode: "cors",
+                        });
+                        if (!resp.ok) {
+                            console.warn(
+                                `⚠️ Motion audio fetch failed (${resp.status}):`,
+                                audioUrl,
+                            );
+                            return;
+                        }
+                        const blob = await resp.blob();
+                        currentMotionAudioBlobUrl = URL.createObjectURL(blob);
+                    } catch (fetchErr) {
+                        // cors fetch failed – try through a same-origin proxy
+                        // built into the Vite dev-server (or just give up gracefully)
+                        console.warn(
+                            "⚠️ Cross-origin audio fetch failed, trying no-cors proxy:",
+                            fetchErr.message,
+                        );
+                        try {
+                            // Attempt via /audio-proxy rewrite (added in vite.config)
+                            const proxyUrl = `/audio-proxy/${encodeURIComponent(audioUrl)}`;
+                            const proxyResp = await fetch(proxyUrl);
+                            if (!proxyResp.ok) {
+                                console.warn(
+                                    "⚠️ Proxy audio fetch also failed:",
+                                    proxyResp.status,
+                                );
+                                return;
+                            }
+                            const blob = await proxyResp.blob();
+                            currentMotionAudioBlobUrl =
+                                URL.createObjectURL(blob);
+                        } catch (proxyErr) {
+                            console.warn(
+                                "⚠️ All audio fetch attempts failed:",
+                                proxyErr.message,
+                            );
+                            return;
+                        }
+                    }
+
+                    // If the user toggled audio off or switched motions while we were fetching, bail out
+                    if (
+                        !modelSettings.enableAudio ||
+                        !currentMotionAudioBlobUrl
+                    ) {
+                        if (currentMotionAudioBlobUrl) {
+                            URL.revokeObjectURL(currentMotionAudioBlobUrl);
+                            currentMotionAudioBlobUrl = null;
+                        }
+                        return;
+                    }
+
+                    currentMotionAudio = new Audio(currentMotionAudioBlobUrl);
+                } else {
+                    // Same-origin: play directly, no CORS issues
+                    currentMotionAudio = new Audio(audioUrl);
+                }
+
+                currentMotionAudio.volume = 1.0;
+
+                currentMotionAudio.addEventListener("ended", () => {
+                    // Revoke Blob URL when playback finishes
+                    if (currentMotionAudioBlobUrl) {
+                        URL.revokeObjectURL(currentMotionAudioBlobUrl);
+                        currentMotionAudioBlobUrl = null;
+                    }
+                    currentMotionAudio = null;
+                });
+
+                currentMotionAudio.addEventListener("error", (e) => {
+                    console.warn(
+                        "⚠️ Motion audio playback error:",
+                        audioUrl,
+                        e,
+                    );
+                    if (currentMotionAudioBlobUrl) {
+                        URL.revokeObjectURL(currentMotionAudioBlobUrl);
+                        currentMotionAudioBlobUrl = null;
+                    }
+                    currentMotionAudio = null;
+                });
+
+                currentMotionAudio.play().catch((err) => {
+                    console.warn(
+                        "⚠️ Motion audio play() rejected:",
+                        err.message,
+                    );
+                    if (currentMotionAudioBlobUrl) {
+                        URL.revokeObjectURL(currentMotionAudioBlobUrl);
+                        currentMotionAudioBlobUrl = null;
+                    }
+                    currentMotionAudio = null;
+                });
+            } catch (error) {
+                console.warn("⚠️ Failed to play motion audio:", error);
+            }
+        };
+
+        /**
+         * Stop currently playing motion audio
+         */
+        const stopMotionAudio = () => {
+            if (currentMotionAudio) {
+                try {
+                    currentMotionAudio.pause();
+                    currentMotionAudio.currentTime = 0;
+                } catch (_) {
+                    // ignore
+                }
+                currentMotionAudio = null;
+            }
+            if (currentMotionAudioBlobUrl) {
+                URL.revokeObjectURL(currentMotionAudioBlobUrl);
+                currentMotionAudioBlobUrl = null;
+            }
+        };
+
         const stopCurrentMotion = () => {
             if (!currentHeroModel.value) return;
 
             currentHeroModel.value.model.stopMotions();
+            stopMotionAudio();
             isMotionPlaying.value = false;
             currentPlayingMotion.value = null;
 
@@ -2273,6 +2466,7 @@ export default {
             playRandomMotion,
             playRandomMotionFromGroup,
             isCurrentMotion,
+            stopMotionAudio,
             getMotionDisplayName,
             getModelDisplayName,
             // Interaction methods

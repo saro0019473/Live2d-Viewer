@@ -12,6 +12,8 @@ export class Live2DAnimationManager {
     this.animationQueue = new Map(); // Animation queue
     this.isPlaying = new Map(); // Playback state tracking
     this.isPetMode = false;
+    this.audioEnabled = true; // Whether audio playback is enabled
+    this.audioVolume = 1.0; // Default audio volume
     this.logger = createLogger("Live2DAnimationManager");
   }
 
@@ -60,6 +62,12 @@ export class Live2DAnimationManager {
         priority: adjustedPriority,
         result,
       });
+
+      // Automatically play associated audio if enabled
+      if (result && this.audioEnabled) {
+        this._playMotionAudio(heroModel, group, index);
+      }
+
       return result;
     } catch (error) {
       this.logger.error("❌ Failed to play motion:", error);
@@ -89,6 +97,7 @@ export class Live2DAnimationManager {
         group: targetGroup,
         result,
       });
+
       return result;
     } catch (error) {
       this.logger.error("❌ Failed to play random motion:", error);
@@ -191,10 +200,58 @@ export class Live2DAnimationManager {
    * @param {string} audioUrl - Audio URL
    * @param {Object} options - Playback options
    */
+  /**
+   * Set audio enabled state
+   * @param {boolean} enabled - Whether to enable audio
+   */
+  setAudioEnabled(enabled) {
+    this.audioEnabled = enabled;
+    this.logger.log(`🔊 Audio ${enabled ? "enabled" : "disabled"}`);
+
+    // If disabling, stop any currently playing audio
+    if (!enabled) {
+      this.stopAudio();
+    }
+  }
+
+  /**
+   * Get audio enabled state
+   * @returns {boolean}
+   */
+  getAudioEnabled() {
+    return this.audioEnabled;
+  }
+
+  /**
+   * Play audio associated with a specific motion
+   * @param {HeroModel} heroModel - HeroModel instance
+   * @param {string} group - Motion group name
+   * @param {number} index - Motion index
+   * @private
+   */
+  _playMotionAudio(heroModel, group, index) {
+    try {
+      if (!heroModel.getMotionAudioUrl) return;
+
+      const audioUrl = heroModel.getMotionAudioUrl(group, index);
+      if (audioUrl) {
+        this.logger.log("🔊 Motion has audio, playing:", audioUrl);
+        this.playAudio(audioUrl, { volume: this.audioVolume });
+      }
+    } catch (error) {
+      this.logger.warn("⚠️ Failed to play motion audio:", error);
+    }
+  }
+
   async playAudio(audioUrl, options = {}) {
     // Do not play audio in pet mode
     if (this.isPetMode) {
       // this.logger.log('🔇 Audio disabled in pet mode')
+      return false;
+    }
+
+    // Do not play audio if audio is disabled
+    if (!this.audioEnabled) {
       return false;
     }
 
