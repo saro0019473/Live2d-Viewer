@@ -1009,6 +1009,8 @@ import {
     onUnmounted,
 } from "vue";
 
+const __DEV__ = import.meta.env.DEV;
+
 import { useLive2DStore } from "../stores/live2d";
 import { globalStateSyncManager } from "../utils/live2d/state-sync-manager.js";
 import { globalResourceManager } from "../utils/resource-manager.js";
@@ -1091,31 +1093,27 @@ export default {
             // 3. Ensure model actually exists in manager
             const heroModel = manager.getModel(currentModelValue.id);
             if (!heroModel) {
-                // console.log(`🔍 [ModelSettings] HeroModel with id ${currentModelValue.id} not found in manager.`);
                 return null;
             }
 
-            console.log(
-                `[ModelSettings] currentHeroModel resolved for id ${currentModelValue.id}.`,
-            );
+            __DEV__ &&
+                console.debug(
+                    `[ModelSettings] currentHeroModel resolved for id ${currentModelValue.id}.`,
+                );
             return heroModel;
         });
 
         // Get expression data from heroModel
         const expressions = computed(() => {
             if (!currentHeroModel.value) {
-                console.log(
-                    "🔍 [ModelSettings] expressions: currentHeroModel is null.",
-                );
                 return [];
             }
             try {
                 const exprs = currentHeroModel.value.getExpressions() || [];
-                console.log(
-                    "🔍 [ModelSettings] expressions computed:",
-                    exprs.length,
-                    "items",
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] expressions computed: ${exprs.length} items`,
+                    );
                 return exprs;
             } catch (error) {
                 console.error(
@@ -1129,18 +1127,14 @@ export default {
         // Get motion data from heroModel
         const motions = computed(() => {
             if (!currentHeroModel.value) {
-                console.log(
-                    "🔍 [ModelSettings] motions: currentHeroModel is null.",
-                );
                 return {};
             }
             try {
                 const mots = currentHeroModel.value.getMotions() || {};
-                console.log(
-                    "🔍 [ModelSettings] motions computed:",
-                    Object.keys(mots).length,
-                    "groups",
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] motions computed: ${Object.keys(mots).length} groups`,
+                    );
                 return mots;
             } catch (error) {
                 console.error(
@@ -1154,19 +1148,15 @@ export default {
         // Get parameter data from heroModel
         const parameters = computed(() => {
             if (!currentHeroModel.value) {
-                console.log(
-                    "🔍 [ModelSettings] parameters: currentHeroModel is null.",
-                );
                 return [];
             }
             try {
                 const modelParams =
                     currentHeroModel.value.getAllParameters() || [];
-                console.log(
-                    "🔍 [ModelSettings] parameters computed:",
-                    modelParams.length,
-                    "items",
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] parameters computed: ${modelParams.length} items`,
+                    );
                 return modelParams;
             } catch (error) {
                 console.error(
@@ -1180,19 +1170,15 @@ export default {
         // Get part opacity data from heroModel
         const partOpacity = computed(() => {
             if (!currentHeroModel.value) {
-                console.log(
-                    "🔍 [ModelSettings] partOpacity: currentHeroModel is null.",
-                );
                 return [];
             }
             try {
                 const modelParts =
                     currentHeroModel.value.getAllPartOpacity() || [];
-                console.log(
-                    "🔍 [ModelSettings] partOpacity computed:",
-                    modelParts.length,
-                    "items.",
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] partOpacity computed: ${modelParts.length} items`,
+                    );
                 return modelParts;
             } catch (error) {
                 console.error(
@@ -1210,7 +1196,8 @@ export default {
                 globalResourceManager.cleanupTimers();
                 syncDebounceTimer.value = null;
             }
-            console.log("🧹 [ModelSettings] Resource cleanup completed");
+            __DEV__ &&
+                console.debug("[ModelSettings] Resource cleanup completed");
         };
         // Settings sync methods
         const syncSettingsToStore = () => {
@@ -1250,9 +1237,10 @@ export default {
                     live2dStore.updateModelState(currentSettings);
                 }
 
-                console.log("💾 [ModelSettings] Settings synced to Store:", {
-                    ...modelSettings,
-                });
+                __DEV__ &&
+                    console.debug("[ModelSettings] Settings synced to Store:", {
+                        ...modelSettings,
+                    });
             } finally {
                 // Delayed unlock to ensure Store update completes before allowing watch
                 setTimeout(() => {
@@ -1268,9 +1256,10 @@ export default {
             isLoadingFromStore.value = true;
             try {
                 if (!currentModel.value || !live2dStore.modelState?.settings) {
-                    console.log(
-                        "📝 [ModelSettings] No settings data in Store, using defaults",
-                    );
+                    __DEV__ &&
+                        console.debug(
+                            "[ModelSettings] No settings data in Store, using defaults",
+                        );
                     return;
                 }
 
@@ -1354,7 +1343,8 @@ export default {
                 applySetting("audio", currentAudioState, settings, false);
                 applySetting("text", currentTextState, settings, false);
 
-                console.log("✅ [ModelSettings] Settings loaded from Store");
+                __DEV__ &&
+                    console.debug("[ModelSettings] Settings loaded from Store");
             } finally {
                 isLoadingFromStore.value = false;
             }
@@ -1364,9 +1354,10 @@ export default {
         const syncAllModelStatesToUI = () => {
             if (!currentHeroModel.value) return;
 
-            console.log(
-                "🔄 [ModelSettings] Starting full state sync from model to UI.",
-            );
+            __DEV__ &&
+                console.debug(
+                    "[ModelSettings] Starting full state sync from model to UI.",
+                );
 
             try {
                 // 1. Sync basic transform properties
@@ -1438,7 +1429,8 @@ export default {
                 // 8. Sync interaction settings
                 updateZoomSettings();
 
-                console.log("✅ [ModelSettings] Full state sync completed.");
+                __DEV__ &&
+                    console.debug("[ModelSettings] Full state sync completed.");
             } catch (error) {
                 console.error(
                     "❌ [ModelSettings] Failed to sync model state:",
@@ -1453,10 +1445,10 @@ export default {
             currentModel,
             async (newModel, oldModel) => {
                 if (newModel && newModel.id !== oldModel?.id) {
-                    console.log(
-                        "🔄 [ModelSettings] Model changed, reloading settings:",
-                        newModel.id,
-                    );
+                    __DEV__ &&
+                        console.debug(
+                            `[ModelSettings] Model changed, reloading settings: ${newModel.id}`,
+                        );
 
                     // Unregister old model state sync
                     if (oldModel) {
@@ -1516,9 +1508,10 @@ export default {
                                 currentHeroModel.value,
                             );
                         if (restored) {
-                            console.log(
-                                "✅ [ModelSettings] State restored from state sync manager",
-                            );
+                            __DEV__ &&
+                                console.debug(
+                                    "[ModelSettings] State restored from state sync manager",
+                                );
                         }
                     }
 
@@ -1546,9 +1539,10 @@ export default {
                     newState.settings &&
                     !isLoadingFromStore.value
                 ) {
-                    console.log(
-                        "🔄 [ModelSettings] Store state changed, reloading settings",
-                    );
+                    __DEV__ &&
+                        console.debug(
+                            "[ModelSettings] Store state changed, reloading settings",
+                        );
                     loadSettingsFromStore();
                 }
             },
@@ -1560,9 +1554,10 @@ export default {
             currentHeroModel,
             (newHeroModel) => {
                 if (newHeroModel) {
-                    console.log(
-                        "🦸‍♂️ [ModelSettings] HeroModel ready, performing full sync",
-                    );
+                    __DEV__ &&
+                        console.debug(
+                            "[ModelSettings] HeroModel ready, performing full sync",
+                        );
                     // On first load, currentModel's watch callback calls syncAllModelStatesToUI
                     // No need to call again here to avoid redundant sync operations
                 }
@@ -1573,22 +1568,22 @@ export default {
         // Watch motion playback state changes
         watch(isMotionPlaying, (newValue) => {
             if (newValue && currentPlayingMotion.value) {
-                console.log(
-                    "🎬 [ModelSettings] Motion started playing:",
-                    currentPlayingMotion.value,
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] Motion started playing: ${currentPlayingMotion.value}`,
+                    );
             } else if (!newValue) {
-                console.log("⏹️ [ModelSettings] Motion stopped");
+                __DEV__ && console.debug("[ModelSettings] Motion stopped");
             }
         });
 
         // Watch expression changes
         watch(currentExpression, (newExpression) => {
             if (newExpression !== null) {
-                console.log(
-                    "😊 [ModelSettings] Expression set:",
-                    newExpression,
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] Expression set: ${newExpression}`,
+                    );
                 syncSettingsToStore();
             }
         });
@@ -1597,10 +1592,8 @@ export default {
         watch(
             currentParameters,
             (newParameters) => {
-                console.log(
-                    "🔧 [ModelSettings] Parameters updated:",
-                    newParameters,
-                );
+                __DEV__ && console.debug("[ModelSettings] Parameters updated");
+                void newParameters; // used by syncSettingsToStore via reactive closure
                 syncSettingsToStore();
             },
             { deep: true },
@@ -1610,18 +1603,17 @@ export default {
         watch(
             currentParts,
             (newParts) => {
-                console.log("🎨 [ModelSettings] Parts updated:", newParts);
+                __DEV__ && console.debug("[ModelSettings] Parts updated");
+                void newParts;
                 syncSettingsToStore();
             },
             { deep: true },
         );
 
         // Watch audio and text state changes
-        watch([currentAudioState, currentTextState], ([newAudio, newText]) => {
-            console.log("🔊 [ModelSettings] Audio/text state updated:", {
-                audio: newAudio,
-                text: newText,
-            });
+        watch([currentAudioState, currentTextState], () => {
+            __DEV__ &&
+                console.debug("[ModelSettings] Audio/text state updated");
             syncSettingsToStore();
         });
 
@@ -1724,10 +1716,10 @@ export default {
                 // Manually sync to Store to avoid duplicate calls
                 syncSettingsToStore();
 
-                console.log(
-                    "🔍 [ModelSettings] Wheel zoom setting updated:",
-                    modelSettings.wheelZoom,
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] Wheel zoom setting updated: ${modelSettings.wheelZoom}`,
+                    );
             } catch (error) {
                 console.error(
                     "❌ [ModelSettings] Failed to update wheel zoom setting:",
@@ -1757,10 +1749,10 @@ export default {
                 // Manually sync to Store to avoid duplicate calls
                 syncSettingsToStore();
 
-                console.log(
-                    "🖱️ [ModelSettings] Mouse interaction setting updated:",
-                    modelSettings.clickInteraction,
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] Mouse interaction setting updated: ${modelSettings.clickInteraction}`,
+                    );
             } catch (error) {
                 console.error(
                     "❌ [ModelSettings] Failed to update mouse interaction setting:",
@@ -1799,12 +1791,7 @@ export default {
                     typeof live2dStore.manager.updateZoomSettings !== "function"
                 ) {
                     console.warn(
-                        "⚠️ [ModelSettings] manager.updateZoomSettings method does not exist, manager type:",
-                        typeof live2dStore.manager,
-                    );
-                    console.log(
-                        "🔍 [ModelSettings] manager object:",
-                        live2dStore.manager,
+                        "[ModelSettings] manager.updateZoomSettings method does not exist",
                     );
                     return;
                 }
@@ -1817,9 +1804,10 @@ export default {
                 // Manually sync to Store to avoid duplicate calls
                 syncSettingsToStore();
 
-                console.log("⚙️ [ModelSettings] Zoom settings updated:", {
-                    speed: zoomSpeed.toFixed(3),
-                });
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] Zoom settings updated: speed=${zoomSpeed.toFixed(3)}`,
+                    );
             } catch (error) {
                 console.error(
                     "❌ [ModelSettings] Failed to update zoom settings:",
@@ -1999,15 +1987,18 @@ export default {
                         Object.assign(currentParts, currentState.parts);
                     }
 
-                    console.log(
-                        "🔄 [ModelSettings] State synced from model to UI:",
-                        modelId,
-                        currentState,
-                    );
+                    __DEV__ &&
+                        console.debug(
+                            `[ModelSettings] State synced from model to UI: ${modelId}`,
+                            currentState,
+                        );
                 },
             );
 
-            console.log("📝 [ModelSettings] State sync registered:", modelId);
+            __DEV__ &&
+                console.debug(
+                    `[ModelSettings] State sync registered: ${modelId}`,
+                );
         };
 
         const unregisterStateSync = () => {
@@ -2015,7 +2006,10 @@ export default {
 
             const modelId = currentModel.value.id;
             globalStateSyncManager.unregisterSyncCallback(modelId);
-            console.log("🗑️ [ModelSettings] State sync unregistered:", modelId);
+            __DEV__ &&
+                console.debug(
+                    `[ModelSettings] State sync unregistered: ${modelId}`,
+                );
         };
 
         const syncUISettingsToModel = () => {
@@ -2049,11 +2043,10 @@ export default {
             );
 
             if (applied) {
-                console.log(
-                    "✅ [ModelSettings] UI settings synced to model:",
-                    modelId,
-                    uiSettings,
-                );
+                __DEV__ &&
+                    console.debug(
+                        `[ModelSettings] UI settings synced to model: ${modelId}`,
+                    );
             }
         };
 

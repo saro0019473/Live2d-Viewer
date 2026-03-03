@@ -3,6 +3,8 @@
  * Centralized management of timers, event listeners, audio contexts, WebGL contexts, and other resources
  */
 
+const __DEV__ = import.meta.env.DEV;
+
 export class ResourceManager {
   constructor() {
     this.resources = new Map();
@@ -63,7 +65,7 @@ export class ResourceManager {
       this.cleanupResource(id); // Clean up old resource
     }
     this.resources.set(id, { resource, cleanupCallback });
-    console.log(`📝 [ResourceManager] Registered resource: ${id}`);
+    __DEV__ && console.log(`📝 [ResourceManager] Registered resource: ${id}`);
   }
 
   /**
@@ -86,7 +88,8 @@ export class ResourceManager {
       this.eventListeners.set(id, []);
     }
     this.eventListeners.get(id).push({ element, event, handler });
-    console.log(`📝 [ResourceManager] Registered event listener: ${id}`);
+    __DEV__ &&
+      console.log(`📝 [ResourceManager] Registered event listener: ${id}`);
   }
 
   /**
@@ -104,9 +107,10 @@ export class ResourceManager {
     const listener = { event, handler, options };
     this.globalEventListeners.get(name).push(listener);
     window.addEventListener(event, handler, options);
-    console.log(
-      `📝 [ResourceManager] Registered global event listener: ${name} (${event})`,
-    );
+    __DEV__ &&
+      console.log(
+        `📝 [ResourceManager] Registered global event listener: ${name} (${event})`,
+      );
   }
 
   /**
@@ -122,9 +126,10 @@ export class ResourceManager {
 
     const listener = { eventType, handler };
     this.modelEventListeners.get(modelId).push(listener);
-    console.log(
-      `📝 [ResourceManager] Registered model event listener: ${modelId} (${eventType})`,
-    );
+    __DEV__ &&
+      console.log(
+        `📝 [ResourceManager] Registered model event listener: ${modelId} (${eventType})`,
+      );
   }
 
   /**
@@ -134,7 +139,8 @@ export class ResourceManager {
    */
   registerAudioContext(id, context) {
     this.audioContexts.add(context);
-    console.log(`📝 [ResourceManager] Registered audio context: ${id}`);
+    __DEV__ &&
+      console.log(`📝 [ResourceManager] Registered audio context: ${id}`);
   }
 
   /**
@@ -144,7 +150,8 @@ export class ResourceManager {
    */
   registerWebGLContext(id, context) {
     this.webglContexts.add(context);
-    console.log(`📝 [ResourceManager] Registered WebGL context: ${id}`);
+    __DEV__ &&
+      console.log(`📝 [ResourceManager] Registered WebGL context: ${id}`);
   }
 
   /**
@@ -158,14 +165,51 @@ export class ResourceManager {
   /**
    * Clean up a specific resource
    * @param {string} resourceId - Resource ID
+   * @param {string} [subId] - Optional sub-identifier (e.g. modelId for model event listeners)
    */
-  cleanupResource(resourceId) {
+  cleanupResource(resourceId, subId) {
+    // Route known resource types to their dedicated cleanup methods
+    if (resourceId === "modelEventListener" && subId) {
+      this.cleanupModelEventListenersByModelId(subId);
+      return;
+    }
+
+    if (resourceId === "globalEventListener" && subId) {
+      // Clean up a specific global event listener group by name
+      const listeners = this.globalEventListeners.get(subId);
+      if (listeners) {
+        listeners.forEach((listener) => {
+          try {
+            window.removeEventListener(
+              listener.event,
+              listener.handler,
+              listener.options,
+            );
+          } catch (e) {
+            console.warn(
+              `⚠️ [ResourceManager] Failed to clean up global event listener (${subId}/${listener.event}):`,
+              e,
+            );
+          }
+        });
+        this.globalEventListeners.delete(subId);
+        __DEV__ &&
+          console.log(
+            `🧹 [ResourceManager] Cleaned up global event listener group: ${subId}`,
+          );
+      }
+      return;
+    }
+
     const resourceInfo = this.resources.get(resourceId);
     if (resourceInfo && typeof resourceInfo.cleanupCallback === "function") {
       try {
         resourceInfo.cleanupCallback(resourceInfo.resource);
         this.resources.delete(resourceId);
-        console.log(`🧹 [ResourceManager] Cleaned up resource: ${resourceId}`);
+        __DEV__ &&
+          console.log(
+            `🧹 [ResourceManager] Cleaned up resource: ${resourceId}`,
+          );
       } catch (error) {
         console.error(
           `❌ [ResourceManager] Failed to clean up resource (${resourceId}):`,
@@ -200,7 +244,8 @@ export class ResourceManager {
       cleanedCount++;
     });
     this.timers.clear();
-    console.log(`🧹 [ResourceManager] Cleaned up timers: ${cleanedCount}`);
+    __DEV__ &&
+      console.log(`🧹 [ResourceManager] Cleaned up timers: ${cleanedCount}`);
   }
 
   /**
@@ -224,9 +269,10 @@ export class ResourceManager {
       });
     });
     this.eventListeners.clear();
-    console.log(
-      `🧹 [ResourceManager] Cleaned up event listeners: ${cleanedCount}`,
-    );
+    __DEV__ &&
+      console.log(
+        `🧹 [ResourceManager] Cleaned up event listeners: ${cleanedCount}`,
+      );
   }
 
   /**
@@ -255,9 +301,39 @@ export class ResourceManager {
       });
     });
     this.globalEventListeners.clear();
-    console.log(
-      `🧹 [ResourceManager] Cleaned up global event listeners: ${cleanedCount}`,
-    );
+    __DEV__ &&
+      console.log(
+        `🧹 [ResourceManager] Cleaned up global event listeners: ${cleanedCount}`,
+      );
+  }
+
+  /**
+   * Clean up model event listeners for a specific model
+   * @param {string} modelId - Model ID to clean up
+   * @returns {number} Number of listeners cleaned up
+   */
+  cleanupModelEventListenersByModelId(modelId) {
+    if (!modelId || !this.modelEventListeners.has(modelId)) {
+      return 0;
+    }
+
+    let cleanedCount = 0;
+    const listeners = this.modelEventListeners.get(modelId);
+    if (listeners) {
+      listeners.forEach((listener) => {
+        __DEV__ &&
+          console.log(
+            `🧹 [ResourceManager] Cleaned up model event listener: ${modelId} (${listener.eventType})`,
+          );
+        cleanedCount++;
+      });
+    }
+    this.modelEventListeners.delete(modelId);
+    __DEV__ &&
+      console.log(
+        `🧹 [ResourceManager] Cleaned up model event listeners for ${modelId}: ${cleanedCount}`,
+      );
+    return cleanedCount;
   }
 
   /**
@@ -267,16 +343,18 @@ export class ResourceManager {
     let cleanedCount = 0;
     this.modelEventListeners.forEach((listeners, modelId) => {
       listeners.forEach((listener) => {
-        console.log(
-          `🧹 [ResourceManager] Cleaned up model event listener: ${modelId} (${listener.eventType})`,
-        );
+        __DEV__ &&
+          console.log(
+            `🧹 [ResourceManager] Cleaned up model event listener: ${modelId} (${listener.eventType})`,
+          );
         cleanedCount++;
       });
     });
     this.modelEventListeners.clear();
-    console.log(
-      `🧹 [ResourceManager] Cleaned up model event listeners: ${cleanedCount}`,
-    );
+    __DEV__ &&
+      console.log(
+        `🧹 [ResourceManager] Cleaned up model event listeners: ${cleanedCount}`,
+      );
   }
 
   /**
@@ -289,9 +367,10 @@ export class ResourceManager {
       cleanedCount++;
     });
     this.audioContexts.clear();
-    console.log(
-      `🧹 [ResourceManager] Cleaned up audio contexts: ${cleanedCount}`,
-    );
+    __DEV__ &&
+      console.log(
+        `🧹 [ResourceManager] Cleaned up audio contexts: ${cleanedCount}`,
+      );
   }
 
   /**
@@ -304,9 +383,10 @@ export class ResourceManager {
       cleanedCount++;
     });
     this.webglContexts.clear();
-    console.log(
-      `🧹 [ResourceManager] Cleaned up WebGL contexts: ${cleanedCount}`,
-    );
+    __DEV__ &&
+      console.log(
+        `🧹 [ResourceManager] Cleaned up WebGL contexts: ${cleanedCount}`,
+      );
   }
 
   /**
@@ -326,16 +406,18 @@ export class ResourceManager {
       }
     });
     this.cleanupCallbacks.clear();
-    console.log(
-      `🧹 [ResourceManager] Executed cleanup callbacks: ${executedCount}`,
-    );
+    __DEV__ &&
+      console.log(
+        `🧹 [ResourceManager] Executed cleanup callbacks: ${executedCount}`,
+      );
   }
 
   /**
    * Clean up all resources
    */
   cleanupAll() {
-    console.log("🧹 [ResourceManager] Starting cleanup of all resources...");
+    __DEV__ &&
+      console.log("🧹 [ResourceManager] Starting cleanup of all resources...");
 
     // Execute cleanup callbacks
     this.executeCleanupCallbacks();
@@ -364,9 +446,10 @@ export class ResourceManager {
     });
 
     const resourceCount = this.getResourceCount();
-    console.log(
-      `🧹 [ResourceManager] All resources cleaned up (resources: ${resourceCount})`,
-    );
+    __DEV__ &&
+      console.log(
+        `🧹 [ResourceManager] All resources cleaned up (resources: ${resourceCount})`,
+      );
   }
 
   /**

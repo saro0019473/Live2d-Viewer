@@ -3,6 +3,8 @@
  * Provides general-purpose utility functions related to Live2D
  */
 
+const __DEV__ = import.meta.env.DEV;
+
 /**
  * Create a logger instance
  * @param {string} name - The name of the logger, displayed as a prefix in logs
@@ -10,7 +12,9 @@
  */
 export function createLogger(name) {
   const prefix = `[${name}]`;
-  const debugMode = process.env.NODE_ENV === "development";
+  // Use import.meta.env.DEV (Vite) rather than process.env.NODE_ENV so the
+  // dead-code eliminator can strip debug branches at build time.
+  const debugMode = __DEV__;
 
   const _log = (message, level = "info", ...args) => {
     const timestamp = new Date().toISOString();
@@ -103,12 +107,28 @@ export function waitForLive2D(timeout = 10000) {
 }
 
 /**
+ * Suppress the browser's "WebGL context was lost" console warning on a
+ * temporary canvas by listening for the `webglcontextlost` event and
+ * calling `preventDefault()`.  This tells the browser that the loss is
+ * intentional and it should not log a warning.
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @returns {Function} cleanup — call this to remove the listener
+ */
+function suppressContextLostWarning(canvas) {
+  const handler = (e) => e.preventDefault();
+  canvas.addEventListener("webglcontextlost", handler);
+  return () => canvas.removeEventListener("webglcontextlost", handler);
+}
+
+/**
  * Check if the browser supports WebGL
  * @returns {boolean}
  */
 export function checkWebGLSupport() {
   try {
     const canvas = document.createElement("canvas");
+    const cleanup = suppressContextLostWarning(canvas);
     const gl =
       canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
     const supported = !!gl;
@@ -118,6 +138,10 @@ export function checkWebGLSupport() {
       const loseCtx = gl.getExtension("WEBGL_lose_context");
       if (loseCtx) loseCtx.loseContext();
     }
+    // Delay cleanup so the suppressContextLostWarning handler has time to
+    // intercept the asynchronous webglcontextlost event and call
+    // preventDefault() before the listener is removed.
+    setTimeout(cleanup, 100);
     return supported;
   } catch (error) {
     logger.error("❌ WebGL support check failed:", error);
@@ -135,8 +159,12 @@ export function checkWebGLSupport() {
  */
 function withTemporaryGL(fn) {
   let gl = null;
+  let cleanup = null;
   try {
     const canvas = document.createElement("canvas");
+    // Suppress the browser console warning that would otherwise appear
+    // when we intentionally destroy this temporary context below.
+    cleanup = suppressContextLostWarning(canvas);
     gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
     if (!gl) return null;
     return fn(gl);
@@ -151,6 +179,12 @@ function withTemporaryGL(fn) {
       } catch (_) {
         // ignore – best effort cleanup
       }
+    }
+    // Delay cleanup so the suppressContextLostWarning handler has time to
+    // intercept the asynchronous webglcontextlost event and call
+    // preventDefault() before the listener is removed.
+    if (cleanup) {
+      setTimeout(cleanup, 100);
     }
   }
 }
@@ -353,26 +387,6 @@ export function generateUniqueId(prefix = "live2d") {
 }
 
 /**
- * Deep clone an object
- * @param {any} obj - The object to clone
- * @returns {any}
- */
-export function deepClone(obj) {
-  if (obj === null || typeof obj !== "object") return obj;
-  if (obj instanceof Date) return new Date(obj.getTime());
-  if (obj instanceof Array) return obj.map((item) => deepClone(item));
-  if (typeof obj === "object") {
-    const clonedObj = {};
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        clonedObj[key] = deepClone(obj[key]);
-      }
-    }
-    return clonedObj;
-  }
-}
-
-/**
  * Check if a URL is valid
  * @param {string} url - The URL to check
  * @returns {boolean}
@@ -411,18 +425,6 @@ export function extractFilenameFromUrl(url, removeExtension = true) {
 }
 
 /**
- * Calculate the distance between two points
- * @param {Object} point1 - Point 1 {x, y}
- * @param {Object} point2 - Point 2 {x, y}
- * @returns {number}
- */
-export function calculateDistance(point1, point2) {
-  const dx = point2.x - point1.x;
-  const dy = point2.y - point1.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-/**
  * Clamp a value within a specified range
  * @param {number} value - The value
  * @param {number} min - Minimum value
@@ -442,14 +444,4 @@ export function clamp(value, min, max) {
  */
 export function lerp(start, end, t) {
   return start + (end - start) * clamp(t, 0, 1);
-}
-
-/**
- * Get a random array element
- * @param {Array} array - The array
- * @returns {any}
- */
-export function getRandomArrayElement(array) {
-  if (!Array.isArray(array) || array.length === 0) return null;
-  return array[Math.floor(Math.random() * array.length)];
 }

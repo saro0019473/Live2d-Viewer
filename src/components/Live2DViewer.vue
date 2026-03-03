@@ -55,11 +55,24 @@ import { Live2DManager } from "../utils/live2d/index.js";
 
 import { globalStateSyncManager } from "../utils/live2d/state-sync-manager.js";
 import { globalResourceManager } from "../utils/resource-manager.js";
+import {
+    isPetMode as _isPetMode,
+    getPetModeConfig,
+    getPetModeStyle,
+    handlePetModeHover as _handlePetModeHover,
+    handlePetModeLeave as _handlePetModeLeave,
+    createPetModeAutoInteraction,
+    initPetModeFeatures as _initPetModeFeatures,
+    getPetModeStatus,
+} from "../utils/live2d/pet-mode.js";
 
 // Constants
 const DEFAULT_MODEL_SCALE = 0.2; // Default model scale value
 
 // Logging utility function
+// - "error" / "warn"  → always emitted (console.error / console.warn)
+// - "debug" / "info"  → only in DEV or when window.DEBUG_LIVE2D is set
+const __VIEWER_DEV__ = import.meta.env.DEV;
 const log = (message, level = "info") => {
     const prefix = "[Live2DViewer]";
     const timestamp = new Date().toISOString();
@@ -72,12 +85,16 @@ const log = (message, level = "info") => {
             console.warn(`${timestamp} ${prefix} ${message}`);
             break;
         case "debug":
-            if (window.DEBUG_LIVE2D) {
-                console.log(`${timestamp} ${prefix} ${message}`);
+            if (__VIEWER_DEV__ || window.DEBUG_LIVE2D) {
+                console.debug(`${timestamp} ${prefix} ${message}`);
             }
             break;
         default:
-            console.log(`${timestamp} ${prefix} ${message}`);
+            // "info" — only emit in dev / when debug flag is on
+            if (__VIEWER_DEV__ || window.DEBUG_LIVE2D) {
+                console.log(`${timestamp} ${prefix} ${message}`);
+            }
+            break;
     }
 };
 
@@ -93,74 +110,20 @@ export default {
         // Visibility-based render pausing
         let visibilityHandler = null;
 
-        // Check if in pet mode
-        const isPetMode = () => {
-            if (typeof window !== "undefined") {
-                return window.location.search.includes("mode=pet");
-            }
-            return false;
-        };
-        const petMode = computed(() => isPetMode());
+        // Pet mode — delegated entirely to the pet-mode.js helper module.
+        const petMode = computed(() => _isPetMode());
+        const petModeConfig = computed(() => getPetModeConfig());
+        const petModeStyle = computed(() => getPetModeStyle());
 
         // Computed properties for safe store state access
         const isLoading = computed(() => live2dStore?.isLoading || false);
         const error = computed(() => live2dStore?.error || null);
 
-        // Pet mode specific configuration
-        const petModeConfig = computed(() => {
-            if (!petMode.value) return null;
-
-            return {
-                // Pet mode specific settings
-                autoHide: true, // Auto-hide to system tray
-                alwaysOnTop: true, // Always on top
-                clickThrough: false, // Click-through
-                autoInteraction: true, // Auto interaction
-                reducedAnimation: false, // Reduce animation to save performance
-
-                // Interaction optimization
-                interaction: {
-                    clickSensitivity: 1.2, // Increased click sensitivity
-                    hoverResponse: true, // Mouse hover response
-                    edgeSnap: true, // Edge snapping
-                    autoMove: false, // Auto move
-                },
-
-                // Performance optimization
-                performance: {
-                    maxFPS: 60, // Unified 60 FPS for synchronization
-                    minFPS: 60,
-                    enableCulling: true,
-                    enableBatching: true,
-                    textureGCMode: "aggressive", // Aggressive texture garbage collection
-                    antialias: false, // Disable antialiasing to save performance
-                    powerPreference: "low-power", // Low power mode
-                },
-            };
-        });
-
-        const petModeStyle = computed(() =>
-            petMode.value
-                ? {
-                      background: "transparent",
-                      "-webkit-app-region": "drag",
-                      position: "absolute",
-                      width: "100vw",
-                      height: "100vh",
-                      pointerEvents: "auto",
-                      // Pet mode specific styles
-                      zIndex: 9999,
-                      userSelect: "none",
-                      overflow: "hidden",
-                  }
-                : {},
-        );
-
         const initLive2D = async () => {
             if (!viewerContainer.value) return;
 
             try {
-                log("Starting Live2D manager initialization...");
+                log("Starting Live2D manager initialization...", "debug");
 
                 // Create Live2D manager instance
                 live2dManager = new Live2DManager(viewerContainer.value);
@@ -181,87 +144,98 @@ export default {
                 };
 
                 // Select mode-specific configuration
-                const modeConfig =
-                    petMode.value && petModeConfig.value
-                        ? {
-                              textureGCMode:
-                                  petModeConfig.value.performance.textureGCMode,
-                              antialias:
-                                  petModeConfig.value.performance.antialias,
-                              powerPreference:
-                                  petModeConfig.value.performance
-                                      .powerPreference,
-                              transparent: true,
-                              preserveDrawingBuffer: false,
-                              clearBeforeRender: false,
-                              contextAttributes: {
-                                  ...baseConfig.contextAttributes,
-                                  antialias: false,
-                              },
-                              batchSize: 4096,
-                              maxTextures: 16,
-                              textureGC: {
-                                  mode: "aggressive",
-                                  maxIdle: 15 * 60,
-                                  checkInterval: 30,
-                              },
-                          }
-                        : {
-                              textureGCMode: "auto",
-                              antialias: true,
-                              powerPreference: "high-performance",
-                              batchSize: 8192,
-                              maxTextures: 32,
-                              textureGC: {
-                                  mode: "auto",
-                                  maxIdle: 30 * 60,
-                                  checkInterval: 60,
-                              },
-                          };
+                const cfg = petModeConfig.value;
+                const modeConfig = cfg
+                    ? {
+                          textureGCMode: cfg.performance.textureGCMode,
+                          antialias: cfg.performance.antialias,
+                          powerPreference: cfg.performance.powerPreference,
+                          transparent: true,
+                          preserveDrawingBuffer: false,
+                          clearBeforeRender: false,
+                          contextAttributes: {
+                              ...baseConfig.contextAttributes,
+                              antialias: false,
+                          },
+                          batchSize: 4096,
+                          maxTextures: 16,
+                          textureGC: {
+                              mode: "aggressive",
+                              maxIdle: 15 * 60,
+                              checkInterval: 30,
+                          },
+                      }
+                    : {
+                          textureGCMode: "auto",
+                          antialias: true,
+                          powerPreference: "high-performance",
+                          batchSize: 8192,
+                          maxTextures: 32,
+                          textureGC: {
+                              mode: "auto",
+                              maxIdle: 30 * 60,
+                              checkInterval: 60,
+                          },
+                      };
 
-                const initOptions = {
-                    ...baseConfig,
-                    ...modeConfig,
-                };
+                const initOptions = { ...baseConfig, ...modeConfig };
 
                 log(
-                    "Using config mode:",
-                    petMode.value ? "pet mode" : "standard mode",
+                    `Using config mode: ${petMode.value ? "pet" : "standard"} | FPS: ${initOptions.maxFPS} | batch: ${initOptions.batchSize} | textures: ${initOptions.maxTextures}`,
+                    "debug",
                 );
-                log("Base optimization config:", {
-                    frameRate: `${initOptions.maxFPS} FPS`,
-                    batchSize: initOptions.batchSize,
-                    textureUnits: initOptions.maxTextures,
-                    webGLDepthBuffer: initOptions.contextAttributes?.depth
-                        ? "enabled"
-                        : "disabled",
-                    webGLStencilBuffer: initOptions.contextAttributes?.stencil
-                        ? "enabled"
-                        : "disabled",
-                    textureGCMode: initOptions.textureGC?.mode,
-                    textureGCInterval: `${initOptions.textureGC?.maxIdle / 60} min`,
-                });
 
                 await live2dManager.init(initOptions);
+
+                // ── WebGL context loss / restore callbacks ──
+                // The core manager now detects context loss events on the
+                // canvas and exposes two callbacks we can hook into so the
+                // application layer can react (pause UI, show message, etc.)
+                if (live2dManager.coreManager) {
+                    live2dManager.coreManager.onContextLost = () => {
+                        log(
+                            "⚠️ WebGL context was lost — rendering paused",
+                            "warn",
+                        );
+                        live2dStore.setError(
+                            "WebGL context lost. Waiting for recovery…",
+                        );
+                    };
+
+                    live2dManager.coreManager.onContextRestored = () => {
+                        log(
+                            "✅ WebGL context restored — resuming rendering",
+                            "info",
+                        );
+                        live2dStore.setError(null);
+
+                        // After context restore PIXI re-uploads textures
+                        // automatically, but we nudge a resize so the
+                        // projection matrix is recalculated correctly.
+                        if (viewerContainer.value) {
+                            const w = viewerContainer.value.clientWidth;
+                            const h = viewerContainer.value.clientHeight;
+                            if (w > 0 && h > 0) {
+                                live2dManager.coreManager.resize(w, h);
+                            }
+                        }
+                    };
+
+                    log(
+                        "🛡️ WebGL context loss/restore callbacks registered",
+                        "debug",
+                    );
+                }
 
                 // Store manager in store
                 live2dStore.setManager(live2dManager);
 
-                // Pet mode special initialization
-                if (petMode.value && petModeConfig.value) {
-                    await initPetModeFeatures();
+                // Pet mode special initialization (delegated to pet-mode.js)
+                if (petMode.value) {
+                    _initPetModeFeatures(live2dManager);
                 }
 
-                log("Live2D manager initialized successfully");
-
-                // Output performance optimization info
-                log("Performance optimizations enabled:", {
-                    webGLOptimization: "depth buffer off, stencil buffer off",
-                    batchOptimization: `batch size: ${initOptions.batchSize || "default"}`,
-                    textureOptimization: `texture units: ${initOptions.maxTextures || "default"}`,
-                    memoryOptimization: "draw buffer not preserved",
-                    frameRateSync: "60 FPS unified frame rate",
-                });
+                log("Live2D manager initialized successfully", "debug");
             } catch (error) {
                 log(
                     `Live2D Viewer initialization failed: ${error.message}`,
@@ -397,8 +371,9 @@ export default {
                                 canvasHeight / 2,
                             );
                         } else {
-                            console.log(
-                                "📐 [Live2DViewer] User-defined scale detected, skipping auto-fit",
+                            log(
+                                "User-defined scale detected, skipping auto-fit",
+                                "debug",
                             );
                         }
                     }
@@ -469,24 +444,6 @@ export default {
             }
         };
 
-        // Pet mode special feature initialization
-        const initPetModeFeatures = async () => {
-            if (!petMode.value || !petModeConfig.value) return;
-
-            log("Initializing pet mode features...");
-
-            // Apply pet mode specific configuration
-            if (live2dManager) {
-                // Enable auto interaction
-                live2dManager.setPetInteraction(true);
-
-                // Apply performance optimizations
-                live2dManager.setPerformanceMode("pet");
-
-                log("Pet mode features initialized");
-            }
-        };
-
         // Retry loading model
         const retryLoadModel = async () => {
             if (live2dStore.currentModel) {
@@ -500,95 +457,33 @@ export default {
             live2dStore.setError(null);
         };
 
-        // Pet mode hover handler
-        const handlePetModeHover = () => {
-            try {
-                const model = live2dManager?.getCurrentModel();
-                if (model && petModeConfig.value?.interaction?.hoverResponse) {
-                    // Trigger hover motion or expression
-                    model.playRandomMotion?.();
-                    log("🐾 [Live2DViewer] Pet hover response triggered");
-                }
-            } catch (error) {
-                log("❌ [Live2DViewer] Pet hover handler failed:", error);
-            }
-        };
+        // Pet mode event handlers — delegated to pet-mode.js
+        const handlePetModeHover = () =>
+            _handlePetModeHover(live2dManager?.getCurrentModel() ?? null);
+        const handlePetModeLeave = () =>
+            _handlePetModeLeave(live2dManager?.getCurrentModel() ?? null);
 
-        const handlePetModeLeave = () => {
-            try {
-                const model = live2dManager?.getCurrentModel();
-                if (model && petModeConfig.value?.interaction?.hoverResponse) {
-                    // Optionally trigger on-leave motion
-                    log("🐾 [Live2DViewer] Pet hover leave");
-                }
-            } catch (error) {
-                log("❌ [Live2DViewer] Pet leave handler failed:", error);
-            }
-        };
-
-        // Pet mode auto-interaction
-        let petModeAutoInteractionTimer = null;
-        const startPetModeAutoInteraction = () => {
-            try {
-                if (petModeAutoInteractionTimer) {
-                    clearInterval(petModeAutoInteractionTimer);
-                }
-
-                // Trigger auto interaction every 30-60 seconds
-                const intervalTime = 30000 + Math.random() * 30000; // 30-60 seconds random
-                petModeAutoInteractionTimer =
-                    globalResourceManager.registerTimer(
-                        setInterval(() => {
-                            const model = live2dManager?.getCurrentModel();
-                            if (model && petModeConfig.value?.autoInteraction) {
-                                // Randomly trigger motion or expression
-                                if (Math.random() > 0.5) {
-                                    model.playRandomMotion?.();
-                                } else {
-                                    model.playRandomExpression?.();
-                                }
-                                console.log(
-                                    "🐾 [Live2DViewer] Pet auto-interaction triggered",
-                                );
-                            }
-                        }, intervalTime),
-                    );
-
-                console.log(
-                    "✅ [Live2DViewer] Pet auto-interaction started, interval:",
-                    Math.round(intervalTime / 1000),
-                    "s",
-                );
-            } catch (error) {
-                console.error(
-                    "❌ [Live2DViewer] Failed to start pet auto-interaction:",
-                    error,
-                );
-            }
-        };
-
-        const stopPetModeAutoInteraction = () => {
-            if (petModeAutoInteractionTimer) {
-                clearInterval(petModeAutoInteractionTimer);
-                petModeAutoInteractionTimer = null;
-                console.log("🛑 [Live2DViewer] Pet auto-interaction stopped");
-            }
-        };
+        // Pet mode auto-interaction — managed via the pet-mode.js controller
+        const petAutoInteract = createPetModeAutoInteraction();
+        const startPetModeAutoInteraction = () =>
+            petAutoInteract.start(() => live2dManager?.getCurrentModel());
+        const stopPetModeAutoInteraction = () => petAutoInteract.stop();
 
         // Safely apply current settings to the newly loaded model
         const applyCurrentSettingsToModel = async (heroModel, modelId) => {
             try {
                 if (!heroModel || !live2dStore.modelState?.settings) {
-                    console.log(
-                        "📝 [Live2DViewer] No current settings or invalid model, skipping settings apply",
+                    log(
+                        "No current settings or invalid model, skipping settings apply",
+                        "debug",
                     );
                     return;
                 }
 
                 const settings = live2dStore.modelState.settings;
-                console.log(
-                    "⚙️ [Live2DViewer] Applying current settings to new model:",
-                    settings,
+                log(
+                    `Applying current settings to new model: ${JSON.stringify(settings)}`,
+                    "debug",
                 );
 
                 // Safely apply basic settings
@@ -632,17 +527,17 @@ export default {
 
                 // Apply zoom settings
                 if (live2dManager && settings.zoomSettings) {
-                    console.log(
-                        "⚙️ [Live2DViewer] Zoom settings applied:",
-                        settings.zoomSettings,
+                    log(
+                        `Zoom settings applied: ${JSON.stringify(settings.zoomSettings)}`,
+                        "debug",
                     );
                 }
 
-                console.log("✅ [Live2DViewer] Settings applied to new model");
+                log("Settings applied to new model", "debug");
             } catch (error) {
-                console.error(
-                    "❌ [Live2DViewer] Failed to apply settings to model:",
-                    error,
+                log(
+                    `Failed to apply settings to model: ${error.message}`,
+                    "error",
                 );
                 // Do not rethrow, to avoid disrupting the model load flow
             }
@@ -652,17 +547,18 @@ export default {
         const handleLive2DModelConfig = (event) => {
             try {
                 const { modelInfo, confName, confUid } = event.detail;
-                console.log(
-                    "📨 [Live2DViewer] Received Live2D model config update:",
-                    modelInfo,
+                log(
+                    `Received Live2D model config update: ${JSON.stringify(modelInfo)}`,
+                    "debug",
                 );
 
                 if (!live2dManager || !modelInfo) return;
 
                 const currentModel = live2dManager.getCurrentModel();
                 if (!currentModel) {
-                    console.warn(
-                        "⚠️ [Live2DViewer] No model currently loaded, cannot apply config",
+                    log(
+                        "No model currently loaded, cannot apply config",
+                        "warn",
                     );
                     return;
                 }
@@ -677,9 +573,7 @@ export default {
                             modelId,
                             modelInfo.tapMotions,
                         );
-                        console.log(
-                            "✅ [Live2DViewer] Model tap interaction config updated",
-                        );
+                        log("Model tap interaction config updated", "debug");
                     }
                 }
 
@@ -697,9 +591,9 @@ export default {
                     });
                 }
             } catch (error) {
-                console.error(
-                    "❌ [Live2DViewer] Failed to handle Live2D model config:",
-                    error,
+                log(
+                    `Failed to handle Live2D model config: ${error.message}`,
+                    "error",
                 );
             }
         };
@@ -708,9 +602,7 @@ export default {
         const syncSettingToStore = (settingKey, value) => {
             try {
                 if (!live2dStore.modelState) {
-                    console.log(
-                        "📝 [Live2DViewer] Store state not initialized, skipping sync",
-                    );
+                    log("Store state not initialized, skipping sync", "debug");
                     return;
                 }
 
@@ -750,13 +642,12 @@ export default {
                     );
                 }
 
-                console.log(
-                    "✅ [Live2DViewer] Setting synced to Store and state manager:",
-                    settingKey,
-                    value,
+                log(
+                    `Setting synced to Store and state manager: ${settingKey} = ${JSON.stringify(value)}`,
+                    "debug",
                 );
             } catch (error) {
-                console.error("❌ [Live2DViewer] Store sync failed:", error);
+                log(`Store sync failed: ${error.message}`, "error");
                 // Do not rethrow, to avoid disrupting API functionality
             }
         };
@@ -782,28 +673,21 @@ export default {
                         },
                     });
 
-                    console.log(
-                        "🔄 [Live2DViewer] Model state received from state sync manager and synced to Store:",
-                        modelId,
-                        currentState,
+                    log(
+                        `Model state synced to Store from state sync manager: ${modelId}`,
+                        "debug",
                     );
                 },
             );
 
-            console.log(
-                "📝 [Live2DViewer] Model state sync registered:",
-                modelId,
-            );
+            log(`Model state sync registered: ${modelId}`, "debug");
         };
 
         const unregisterModelStateSync = (modelId) => {
             if (!modelId) return;
 
             globalStateSyncManager.unregisterSyncCallback(modelId);
-            console.log(
-                "🗑️ [Live2DViewer] Model state sync unregistered:",
-                modelId,
-            );
+            log(`Model state sync unregistered: ${modelId}`, "debug");
         };
 
         const validateModelStateConsistency = (
@@ -827,7 +711,7 @@ export default {
                     const debounceResize = (() => {
                         let timer = null;
                         return (fn, delay) => {
-                            if (timer) clearTimeout(timer);
+                            if (timer !== null) clearTimeout(timer);
                             timer = setTimeout(fn, delay);
                         };
                     })();
@@ -930,9 +814,7 @@ export default {
                             try {
                                 const model = live2dManager.getCurrentModel();
                                 if (!model) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] No model currently loaded",
-                                    );
+                                    log("No model currently loaded", "warn");
                                     return false;
                                 }
 
@@ -941,9 +823,9 @@ export default {
                                     scale <= 0 ||
                                     scale > 5
                                 ) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] Invalid scale value, must be between 0 and 5:",
-                                        scale,
+                                    log(
+                                        `Invalid scale value (must be 0–5): ${scale}`,
+                                        "warn",
                                     );
                                     return false;
                                 }
@@ -954,15 +836,12 @@ export default {
                                 // Sync to Store and state manager via syncSettingToStore
                                 syncSettingToStore("scale", scale);
 
-                                console.log(
-                                    "✅ [Live2D API] Model scale set:",
-                                    scale,
-                                );
+                                log(`Model scale set: ${scale}`, "debug");
                                 return true;
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to set scale:",
-                                    error,
+                                log(
+                                    `Failed to set scale: ${error.message}`,
+                                    "error",
                                 );
                                 return false;
                             }
@@ -973,9 +852,7 @@ export default {
                             try {
                                 const model = live2dManager.getCurrentModel();
                                 if (!model) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] No model currently loaded",
-                                    );
+                                    log("No model currently loaded", "warn");
                                     return false;
                                 }
 
@@ -983,10 +860,9 @@ export default {
                                     typeof x !== "number" ||
                                     typeof y !== "number"
                                 ) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] Invalid position values:",
-                                        x,
-                                        y,
+                                    log(
+                                        `Invalid position values: x=${x}, y=${y}`,
+                                        "warn",
                                     );
                                     return false;
                                 }
@@ -1009,16 +885,15 @@ export default {
                                     y: clampedY,
                                 });
 
-                                console.log(
-                                    "✅ [Live2D API] Model position set:",
-                                    clampedX,
-                                    clampedY,
+                                log(
+                                    `Model position set: (${clampedX}, ${clampedY})`,
+                                    "debug",
                                 );
                                 return true;
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to set position:",
-                                    error,
+                                log(
+                                    `Failed to set position: ${error.message}`,
+                                    "error",
                                 );
                                 return false;
                             }
@@ -1029,31 +904,28 @@ export default {
                             try {
                                 const model = live2dManager.getCurrentModel();
                                 if (!model) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] No model currently loaded",
-                                    );
+                                    log("No model currently loaded", "warn");
                                     return false;
                                 }
 
                                 if (!group || typeof group !== "string") {
-                                    console.warn(
-                                        "⚠️ [Live2D API] Invalid motion group name:",
-                                        group,
+                                    log(
+                                        `Invalid motion group name: ${group}`,
+                                        "warn",
                                     );
                                     return false;
                                 }
 
                                 model.playMotion(group, index, priority);
-                                console.log(
-                                    "✅ [Live2D API] Playing motion:",
-                                    group,
-                                    index,
+                                log(
+                                    `Playing motion: ${group}[${index}]`,
+                                    "debug",
                                 );
                                 return true;
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to play motion:",
-                                    error,
+                                log(
+                                    `Failed to play motion: ${error.message}`,
+                                    "error",
                                 );
                                 return false;
                             }
@@ -1072,9 +944,9 @@ export default {
                                             .currentModelId,
                                 };
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to get manager status:",
-                                    error,
+                                log(
+                                    `Failed to get manager status: ${error.message}`,
+                                    "error",
                                 );
                                 return null;
                             }
@@ -1088,9 +960,9 @@ export default {
 
                                 return model.getMotions?.() || {};
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to get motion list:",
-                                    error,
+                                log(
+                                    `Failed to get motion list: ${error.message}`,
+                                    "error",
                                 );
                                 return {};
                             }
@@ -1104,9 +976,9 @@ export default {
 
                                 return model.getExpressions?.() || [];
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to get expression list:",
-                                    error,
+                                log(
+                                    `Failed to get expression list: ${error.message}`,
+                                    "error",
                                 );
                                 return [];
                             }
@@ -1164,15 +1036,15 @@ export default {
                                     },
                                 };
 
-                                console.log(
-                                    "🔍 [Live2D API] Interactivity status check:",
-                                    status,
+                                log(
+                                    `Interactivity status: ${JSON.stringify(status)}`,
+                                    "debug",
                                 );
                                 return status;
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to check interactivity status:",
-                                    error,
+                                log(
+                                    `Failed to check interactivity status: ${error.message}`,
+                                    "error",
                                 );
                                 return null;
                             }
@@ -1186,13 +1058,14 @@ export default {
                                 live2dManager?.setWheelZoomEnabled(
                                     Boolean(enabled),
                                 );
-                                console.log(
-                                    `✅ [Live2D API] Wheel zoom ${enabled ? "enabled" : "disabled"}`,
+                                log(
+                                    `Wheel zoom ${enabled ? "enabled" : "disabled"}`,
+                                    "debug",
                                 );
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to set wheel zoom:",
-                                    error,
+                                log(
+                                    `Failed to set wheel zoom: ${error.message}`,
+                                    "error",
                                 );
                             }
                         },
@@ -1202,17 +1075,11 @@ export default {
                         // Get pet mode status
                         getPetModeStatus: () => {
                             try {
-                                return {
-                                    enabled: petMode.value,
-                                    config: petModeConfig.value,
-                                    isActive:
-                                        petMode.value &&
-                                        !!live2dManager?.getCurrentModel(),
-                                };
+                                return getPetModeStatus(petAutoInteract);
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to get pet mode status:",
-                                    error,
+                                log(
+                                    `Failed to get pet mode status: ${error.message}`,
+                                    "error",
                                 );
                                 return null;
                             }
@@ -1222,17 +1089,13 @@ export default {
                         setPetInteraction: (enabled) => {
                             try {
                                 if (!petMode.value) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] Not in pet mode",
-                                    );
+                                    log("Not in pet mode", "warn");
                                     return false;
                                 }
 
                                 const model = live2dManager.getCurrentModel();
                                 if (!model) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] No model currently loaded",
-                                    );
+                                    log("No model currently loaded", "warn");
                                     return false;
                                 }
 
@@ -1245,15 +1108,15 @@ export default {
                                     Boolean(enabled),
                                 );
 
-                                console.log(
-                                    "✅ [Live2D API] Pet interaction set:",
-                                    enabled ? "enabled" : "disabled",
+                                log(
+                                    `Pet interaction ${enabled ? "enabled" : "disabled"}`,
+                                    "debug",
                                 );
                                 return true;
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to set pet interaction:",
-                                    error,
+                                log(
+                                    `Failed to set pet interaction: ${error.message}`,
+                                    "error",
                                 );
                                 return false;
                             }
@@ -1263,15 +1126,14 @@ export default {
                         setPetPerformanceMode: (mode) => {
                             try {
                                 if (!petMode.value) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] Not in pet mode",
-                                    );
+                                    log("Not in pet mode", "warn");
                                     return false;
                                 }
 
                                 if (!live2dManager) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] Live2D manager is not initialized",
+                                    log(
+                                        "Live2D manager is not initialized",
+                                        "warn",
                                     );
                                     return false;
                                 }
@@ -1285,9 +1147,9 @@ export default {
 
                                 const settings = performanceSettings[mode];
                                 if (!settings) {
-                                    console.warn(
-                                        "⚠️ [Live2D API] Invalid performance mode:",
-                                        mode,
+                                    log(
+                                        `Invalid performance mode: ${mode}`,
+                                        "warn",
                                     );
                                     return false;
                                 }
@@ -1300,23 +1162,22 @@ export default {
                                     app.ticker.minFPS = settings.minFPS;
                                 }
 
-                                console.log(
-                                    "✅ [Live2D API] Pet performance mode set:",
-                                    mode,
-                                    settings,
+                                log(
+                                    `Pet performance mode set: ${mode} (maxFPS=${settings.maxFPS})`,
+                                    "debug",
                                 );
                                 return true;
                             } catch (error) {
-                                console.error(
-                                    "❌ [Live2D API] Failed to set pet performance mode:",
-                                    error,
+                                log(
+                                    `Failed to set pet performance mode: ${error.message}`,
+                                    "error",
                                 );
                                 return false;
                             }
                         },
                     };
 
-                    console.log("✅ [Live2DViewer] Global Live2D API mounted");
+                    log("Global Live2D API mounted", "debug");
                 }
 
                 // Register WebSocket event listener
@@ -1324,23 +1185,22 @@ export default {
                     "websocket:live2d-model-config",
                     handleLive2DModelConfig,
                 );
-                console.log(
-                    "✅ [Live2DViewer] WebSocket event listener registered",
-                );
+                log("WebSocket event listener registered", "debug");
 
                 // Show resource manager status in development environment
                 if (import.meta.env.DEV) {
-                    console.log(
-                        "📊 [Live2DViewer] Resource manager status:",
-                        globalResourceManager.getResourceCount(),
+                    log(
+                        `Resource manager status: ${JSON.stringify(globalResourceManager.getResourceCount())}`,
+                        "debug",
                     );
                 }
             }); // end initLive2D().then()
         }); // end onMounted()
 
         onUnmounted(() => {
-            console.log(
-                "🧹 [Live2DViewer] Component unmounting, starting Live2D manager cleanup",
+            log(
+                "Component unmounting, starting Live2D manager cleanup",
+                "debug",
             );
 
             try {
@@ -1348,9 +1208,7 @@ export default {
                 if (resizeObserver) {
                     resizeObserver.disconnect();
                     resizeObserver = null;
-                    console.log(
-                        "🧹 [Live2DViewer] ResizeObserver disconnected",
-                    );
+                    log("ResizeObserver disconnected", "debug");
                 }
 
                 // 0b. Remove visibility change listener
@@ -1360,21 +1218,13 @@ export default {
                         visibilityHandler,
                     );
                     visibilityHandler = null;
-                    console.log(
-                        "🧹 [Live2DViewer] Visibility change listener removed",
-                    );
+                    log("Visibility change listener removed", "debug");
                 }
 
                 // 1. Clean up pet mode resources
                 if (petMode.value) {
-                    console.log(
-                        "🧹 [Live2DViewer] Cleaning up pet mode resources...",
-                    );
-
-                    // Stop auto interaction
                     stopPetModeAutoInteraction();
 
-                    // Clean up hover event listeners (if registered)
                     if (viewerContainer.value) {
                         try {
                             viewerContainer.value.removeEventListener(
@@ -1385,9 +1235,6 @@ export default {
                                 "mouseleave",
                                 handlePetModeLeave,
                             );
-                            console.log(
-                                "🧹 [Live2DViewer] Pet hover event listeners cleaned up",
-                            );
                         } catch (error) {
                             console.error(
                                 "❌ [Live2DViewer] Failed to clean up pet hover events:",
@@ -1395,22 +1242,14 @@ export default {
                             );
                         }
                     }
-
-                    console.log(
-                        "🧹 [Live2DViewer] Pet mode resources cleaned up",
-                    );
+                    log("Pet mode resources cleaned up", "debug");
                 }
 
                 // 2. Clean up Live2D manager
                 if (live2dManager) {
-                    console.log(
-                        "🧹 [Live2DViewer] Destroying Live2D manager...",
-                    );
                     try {
                         live2dManager.destroy();
-                        console.log(
-                            "✅ [Live2DViewer] Live2D manager destroyed",
-                        );
+                        log("Live2D manager destroyed", "debug");
                     } catch (error) {
                         console.error(
                             "❌ [Live2DViewer] Failed to destroy Live2D manager:",
@@ -1424,9 +1263,7 @@ export default {
                 if (window.live2d) {
                     try {
                         delete window.live2d;
-                        console.log(
-                            "🧹 [Live2DViewer] Global live2d object cleaned up",
-                        );
+                        log("Global live2d object cleaned up", "debug");
                     } catch (error) {
                         console.error(
                             "❌ [Live2DViewer] Failed to clean up global live2d object:",
@@ -1441,9 +1278,7 @@ export default {
                         "websocket:live2d-model-config",
                         handleLive2DModelConfig,
                     );
-                    console.log(
-                        "🧹 [Live2DViewer] WebSocket event listener cleaned up",
-                    );
+                    log("WebSocket event listener cleaned up", "debug");
                 } catch (error) {
                     console.error(
                         "❌ [Live2DViewer] Failed to clean up WebSocket event listener:",
@@ -1453,13 +1288,8 @@ export default {
 
                 // 5. Clean up state sync manager
                 try {
-                    if (globalStateSyncManager) {
-                        // globalStateSyncManager exposes cleanup(), not destroy()
-                        globalStateSyncManager.cleanup();
-                        console.log(
-                            "🧹 [Live2DViewer] State sync manager cleaned up",
-                        );
-                    }
+                    globalStateSyncManager.cleanup();
+                    log("State sync manager cleaned up", "debug");
                 } catch (error) {
                     console.error(
                         "❌ [Live2DViewer] Failed to clean up state sync manager:",
@@ -1470,8 +1300,9 @@ export default {
                 // 6. Clean up all resources registered in resource manager
                 try {
                     globalResourceManager.cleanupAll();
-                    console.log(
-                        "✅ [Live2DViewer] All resources in resource manager cleaned up",
+                    log(
+                        "All resources in resource manager cleaned up",
+                        "debug",
                     );
                 } catch (error) {
                     console.error(
@@ -1480,9 +1311,7 @@ export default {
                     );
                 }
 
-                console.log(
-                    "✅ [Live2DViewer] Component unmount cleanup complete",
-                );
+                log("Component unmount cleanup complete", "debug");
             } catch (error) {
                 console.error(
                     "❌ [Live2DViewer] Component unmount cleanup failed:",

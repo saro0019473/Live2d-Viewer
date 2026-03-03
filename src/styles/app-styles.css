@@ -271,11 +271,6 @@
     justify-content: center;
 }
 
-/* AI control panel */
-.ai-control-container {
-    overflow-y: auto;
-}
-
 /* Loading container */
 .loading-container {
     display: flex;
@@ -402,16 +397,6 @@
     z-index: 1000 !important;
 }
 
-/* Ensure subtitles are on top layer */
-.subtitle-container {
-    z-index: 999 !important;
-}
-
-/* Ensure history modal is on top layer */
-.history-modal {
-    z-index: 1000 !important;
-}
-
 /* Split divider style */
 .n-split-pane-divider {
     background: var(--n-border-color);
@@ -445,60 +430,83 @@
     border-bottom: 1px solid var(--n-border-color);
 }
 
-/* Desktop pet mode styles */
-.pet-mode {
-    background: transparent !important;
-    overflow: hidden;
-}
-
-.pet-mode-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    background: transparent;
-}
-
-.pet-model-container {
-    flex: 1;
-    position: relative;
-    min-height: 400px;
-}
-
-.pet-chat-container {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
-    z-index: 1000;
-}
-
-/* Ensure other elements are hidden in desktop pet mode */
-.pet-mode .main-layout {
-    display: none;
-}
-
 /* Keep original styles */
 .app-container {
     height: 100vh;
     overflow: hidden;
 }
 
-/* Theme-related styles */
-body {
+/* ── Theme transitions ──────────────────────────────────────────────────────
+   Smooth transition saat tema berubah.  Berlaku untuk body dan semua elemen
+   yang menggunakan var(--n-body-color) / var(--n-text-color).
+   ──────────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
     transition:
-        background-color 0.3s ease,
-        color 0.3s ease;
+        background-color 0.25s ease,
+        background 0.25s ease,
+        color 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease !important;
 }
 
-body.dark-theme {
-    background-color: var(--n-body-color-dark);
-    color: var(--n-text-color-dark);
+/* Elemen yang sebaiknya TIDAK dikenai transition warna (animasi PIXI, SVG, dll.) */
+canvas,
+canvas *,
+.live2d-viewer,
+.live2d-viewer * {
+    transition: none !important;
 }
 
-body.light-theme {
-    background-color: var(--n-body-color-light);
-    color: var(--n-text-color-light);
+/* ── Body base ──────────────────────────────────────────────────────────────
+   Nilai background / color di-set langsung oleh applyThemeToDOM() melalui
+   body.style, sehingga aturan CSS di sini hanya perlu mengikuti var() yang
+   sudah diinjeksi ke :root.
+   ──────────────────────────────────────────────────────────────────────── */
+body {
+    background: var(--n-body-color);
+    color: var(--n-text-color1);
+}
+
+/* ── Dark theme overrides ───────────────────────────────────────────────────
+   Selector [data-theme="dark"] di-set oleh applyThemeToDOM() pada <html> dan
+   <body>.  Aturan di sini sebagai fallback CSS murni (tanpa JS).
+   ──────────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"],
+[data-theme="dark"] body {
+    color-scheme: dark;
+    background: rgb(16, 16, 20);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+:root[data-theme="light"],
+[data-theme="light"] body {
+    color-scheme: light;
+    background: #fff;
+    color: rgb(31, 34, 37);
+}
+
+/* ── Scrollbar theming ──────────────────────────────────────────────────────
+   Override scrollbar warna agar mengikuti tema aktif, bukan nilai default
+   browser.
+   ──────────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+}
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+:root[data-theme="light"] ::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.25);
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.4);
 }

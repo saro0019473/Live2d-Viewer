@@ -1,6 +1,13 @@
 /**
  * Debug Configuration
  * Controls the log output level throughout the application
+ *
+ * Only flags that are actively consumed by the codebase are kept here.
+ * Removed flags (no corresponding feature implemented):
+ *   - DEBUG_WEBSOCKET
+ *   - DEBUG_AUDIO
+ *   - DEBUG_CHAT
+ *   - DEBUG_MODEL_SETTINGS
  */
 
 // Debug configuration object
@@ -9,21 +16,8 @@ export const debugConfig = {
   DEBUG_MODE:
     import.meta.env.DEV || localStorage.getItem("DEBUG_MODE") === "true",
 
-  // WebSocket debug
-  DEBUG_WEBSOCKET:
-    import.meta.env.DEV || localStorage.getItem("DEBUG_WEBSOCKET") === "true",
-
-  // Audio debug
-  DEBUG_AUDIO: localStorage.getItem("DEBUG_AUDIO") === "true",
-
   // Live2D debug
   DEBUG_LIVE2D: localStorage.getItem("DEBUG_LIVE2D") === "true",
-
-  // Chat debug
-  DEBUG_CHAT: localStorage.getItem("DEBUG_CHAT") === "true",
-
-  // Model settings debug
-  DEBUG_MODEL_SETTINGS: localStorage.getItem("DEBUG_MODEL_SETTINGS") === "true",
 };
 
 // Set debug mode
@@ -63,13 +57,8 @@ export const getDebugMode = (mode) => {
 
 // Update global debug variables
 export const updateGlobalDebugVars = () => {
-  // Set global variables
   window.DEBUG_MODE = debugConfig.DEBUG_MODE;
-  window.DEBUG_WEBSOCKET = debugConfig.DEBUG_WEBSOCKET;
-  window.DEBUG_AUDIO = debugConfig.DEBUG_AUDIO;
   window.DEBUG_LIVE2D = debugConfig.DEBUG_LIVE2D;
-  window.DEBUG_CHAT = debugConfig.DEBUG_CHAT;
-  window.DEBUG_MODEL_SETTINGS = debugConfig.DEBUG_MODEL_SETTINGS;
 };
 
 // Initialize debug configuration

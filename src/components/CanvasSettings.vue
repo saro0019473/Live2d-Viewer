@@ -711,6 +711,9 @@
 
 <script>
 import { ref, reactive, onMounted, onUnmounted } from "vue";
+
+const __DEV__ = import.meta.env.DEV;
+
 import { useLive2DStore } from "../stores/live2d";
 
 export default {
@@ -813,14 +816,15 @@ export default {
                             enableBatching: settings.enableBatching,
                         });
 
-                        console.log(
-                            "✅ [CanvasSettings] All settings updated:",
-                            {
-                                canvasSize: `${settings.canvasWidth}x${settings.canvasHeight}`,
-                                autoResize: settings.autoResize,
-                                maxFPS: settings.maxFPS,
-                            },
-                        );
+                        __DEV__ &&
+                            console.debug(
+                                "[CanvasSettings] All settings updated:",
+                                {
+                                    canvasSize: `${settings.canvasWidth}x${settings.canvasHeight}`,
+                                    autoResize: settings.autoResize,
+                                    maxFPS: settings.maxFPS,
+                                },
+                            );
                     } catch (error) {
                         console.error(
                             "❌ [CanvasSettings] Settings update failed:",
@@ -862,7 +866,8 @@ export default {
                     enableBatching: settings.enableBatching,
                 });
 
-                console.log("✅ [CanvasSettings] Live2D settings updated");
+                __DEV__ &&
+                    console.debug("[CanvasSettings] Live2D settings updated");
             } catch (error) {
                 console.error(
                     "❌ [CanvasSettings] Live2D settings update failed:",
@@ -1016,7 +1021,7 @@ export default {
 
         onMounted(() => {
             try {
-                console.log("🔄 [CanvasSettings] Component mounted");
+                __DEV__ && console.debug("[CanvasSettings] Component mounted");
 
                 // Wait a tick to ensure all dependencies are initialized
                 setTimeout(() => {

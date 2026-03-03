@@ -5,6 +5,8 @@
 
 import { globalResourceManager } from "../resource-manager.js";
 
+const __DEV__ = import.meta.env.DEV;
+
 // Unified state sync utilities
 const StateSyncUtils = {
   // Get model state
@@ -196,8 +198,7 @@ export class Live2DStateSyncManager {
     this.motionStates = new Map(); // Motion states
     this.parameterStates = new Map(); // Parameter states
     this.partStates = new Map(); // Part states
-    this.audioStates = new Map(); // Audio states
-    this.textStates = new Map(); // Text states
+    // audioStates and textStates removed — no audio/text features implemented
 
     // State cache
     this.stateCache = new Map();
@@ -220,7 +221,8 @@ export class Live2DStateSyncManager {
    */
   registerSyncCallback(modelId, callback) {
     this.syncCallbacks.set(modelId, callback);
-    console.log(`📝 [StateSyncManager] Registered sync callback: ${modelId}`);
+    __DEV__ &&
+      console.debug(`[StateSyncManager] Registered sync callback: ${modelId}`);
   }
 
   /**
@@ -229,7 +231,10 @@ export class Live2DStateSyncManager {
    */
   unregisterSyncCallback(modelId) {
     this.syncCallbacks.delete(modelId);
-    console.log(`🗑️ [StateSyncManager] Unregistered sync callback: ${modelId}`);
+    __DEV__ &&
+      console.debug(
+        `[StateSyncManager] Unregistered sync callback: ${modelId}`,
+      );
   }
 
   /**
@@ -245,7 +250,10 @@ export class Live2DStateSyncManager {
 
     const callback = this.syncCallbacks.get(modelId);
     if (!callback) {
-      console.warn("⚠️ [StateSyncManager] Sync callback not found:", modelId);
+      __DEV__ &&
+        console.debug(
+          `[StateSyncManager] No sync callback registered for: ${modelId}`,
+        );
       return;
     }
 
@@ -253,11 +261,6 @@ export class Live2DStateSyncManager {
       const currentState = StateSyncUtils.getModelState(model);
       if (currentState) {
         callback(currentState);
-        console.log(
-          "🔄 [StateSyncManager] Model state synced to UI:",
-          modelId,
-          currentState,
-        );
       }
     } catch (error) {
       console.error("❌ [StateSyncManager] Failed to sync model state:", error);
@@ -280,13 +283,6 @@ export class Live2DStateSyncManager {
 
     try {
       const success = StateSyncUtils.applyUISettings(model, uiSettings);
-      if (success) {
-        console.log(
-          "✅ [StateSyncManager] UI settings synced to model:",
-          modelId,
-          uiSettings,
-        );
-      }
       return success;
     } catch (error) {
       console.error("❌ [StateSyncManager] Failed to sync UI settings:", error);
@@ -303,7 +299,6 @@ export class Live2DStateSyncManager {
       models.forEach((model, modelId) => {
         this.syncModelStateToUI(modelId, model);
       });
-      console.log("🔄 [StateSyncManager] All model states synced");
     } catch (error) {
       console.error("❌ [StateSyncManager] Batch sync failed:", error);
     }
@@ -377,12 +372,6 @@ export class Live2DStateSyncManager {
     }
 
     try {
-      console.log(
-        "🔄 [StateSyncManager] Force syncing state:",
-        modelId,
-        targetState,
-      );
-
       // Apply target state
       const success = StateSyncUtils.applyUISettings(model, targetState);
 
@@ -396,7 +385,6 @@ export class Live2DStateSyncManager {
         );
 
         if (validation.isConsistent) {
-          console.log("✅ [StateSyncManager] Force sync successful:", modelId);
           return true;
         } else {
           console.warn(
@@ -425,7 +413,6 @@ export class Live2DStateSyncManager {
       state: structuredClone(state),
       timestamp: Date.now(),
     });
-    console.log("💾 [StateSyncManager] State saved to cache:", modelId);
   }
 
   /**
@@ -441,17 +428,10 @@ export class Live2DStateSyncManager {
         return false;
       }
 
-      console.log("🔄 [StateSyncManager] Restoring state from cache:", modelId);
-
       // Use unified tool to apply state, passing cachedData.state instead of the entire cachedData object
       const success = StateSyncUtils.applyUISettings(model, cachedData.state);
 
-      if (success) {
-        console.log(
-          "✅ [StateSyncManager] State restoration successful:",
-          modelId,
-        );
-      } else {
+      if (!success) {
         console.warn(
           "⚠️ [StateSyncManager] State restoration failed:",
           modelId,
@@ -469,8 +449,6 @@ export class Live2DStateSyncManager {
    * Clean up resources
    */
   cleanup() {
-    console.log("🧹 [StateSyncManager] Starting resource cleanup...");
-
     try {
       // Clean up sync callbacks
       this.syncCallbacks.clear();
@@ -487,13 +465,9 @@ export class Live2DStateSyncManager {
       this.motionStates.clear();
       this.parameterStates.clear();
       this.partStates.clear();
-      this.audioStates.clear();
-      this.textStates.clear();
 
       // Clean up circular sync guard
       this.syncInProgress.clear();
-
-      console.log("✅ [StateSyncManager] Resource cleanup complete");
     } catch (error) {
       console.error("❌ [StateSyncManager] Resource cleanup failed:", error);
     }
@@ -513,7 +487,8 @@ export class Live2DStateSyncManager {
     this.registerSyncCallback("store", (state) => {
       // Prevent circular sync
       if (this.syncInProgress.has("store")) {
-        console.log("🔄 [StateSyncManager] Skipping circular sync:", "store");
+        __DEV__ &&
+          console.debug("[StateSyncManager] Skipping circular sync: store");
         return;
       }
 
@@ -523,15 +498,11 @@ export class Live2DStateSyncManager {
         // Update state in the Store
         live2dStore.updateModelState(state);
       } catch (error) {
-        console.error("❌ [StateSyncManager] Store sync failed:", error);
+        console.error("[StateSyncManager] Store sync failed:", error);
       } finally {
         this.syncInProgress.delete("store");
       }
     });
-
-    console.log(
-      "✅ [StateSyncManager] Integrated with Live2D Store (with circular sync guard)",
-    );
   }
 
   /**

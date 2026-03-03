@@ -300,8 +300,8 @@ export class HeroModel {
       );
     } else {
       // If not defined in JSON, fall back to getting IDs from Live2DCubismCore.Model
-      this.logger.warn(
-        "⚠️ No parameter definitions found in model JSON, falling back to core model traversal.",
+      this.logger.log(
+        "ℹ️ No parameter definitions found in model JSON, falling back to core model traversal.",
       );
 
       // The correct way is to get the underlying model from coreModel.getModel(), then access its parameters
@@ -596,11 +596,11 @@ export class HeroModel {
       }
 
       // If the motion is not an idle motion, automatically switch to a random idle motion after playback ends
-      if (group !== "idle") {
-        motionManager.once("motionFinish", () => {
-          this.playRandomMotion("idle");
-        });
-      }
+      // if (group !== "idle") {
+      //   motionManager.once("motionFinish", () => {
+      //     this.playRandomMotion("idle");
+      //   });
+      // }
 
       const success = await motionManager.startMotion(group, index);
 
@@ -809,8 +809,8 @@ export class HeroModel {
       !this.model.internalModel ||
       !this.model.internalModel.expressionManager
     ) {
-      this.logger.warn(
-        "⚠️ Cannot get current expression: model or expression manager not ready",
+      this.logger.debug(
+        "ℹ️ Cannot get current expression: model or expression manager not ready",
       );
       return null;
     }
@@ -1047,39 +1047,50 @@ export class HeroModel {
     targetHeightRatio = 0.5,
   ) {
     try {
-      // Try to get size information from model settings
+      // Get the PIXI model's rendered pixel dimensions at scale 1.0.
+      // coreModel.getCanvasWidth/Height() returns Cubism abstract units which
+      // can be very small (e.g. 28x16) and are NOT pixel dimensions.
+      // The PIXI Live2D model's width/height properties give the actual
+      // rendered size in pixels, but they are affected by the current scale,
+      // so we need to normalize them back to scale 1.0.
       let modelWidth, modelHeight;
 
-      if (this.rawModelSettings && this.rawModelSettings.CanvasSize) {
-        // Get canvas size from model settings
-        modelWidth = this.rawModelSettings.CanvasSize.Width;
-        modelHeight = this.rawModelSettings.CanvasSize.Height;
-        this.logger.log("📐 Got size from model settings:", {
-          modelWidth,
-          modelHeight,
+      const currentScaleX = this.model.scale.x || 1;
+      const currentScaleY = this.model.scale.y || 1;
+
+      // model.width and model.height are the pixel dimensions at current scale
+      const pixelWidth = this.model.width;
+      const pixelHeight = this.model.height;
+
+      if (pixelWidth > 0 && pixelHeight > 0) {
+        // Normalize to scale 1.0 pixel dimensions
+        modelWidth = pixelWidth / currentScaleX;
+        modelHeight = pixelHeight / currentScaleY;
+        this.logger.log("📐 Got pixel size from PIXI model (at scale 1.0):", {
+          modelWidth: modelWidth.toFixed(1),
+          modelHeight: modelHeight.toFixed(1),
+          currentScale: `${currentScaleX}x${currentScaleY}`,
         });
       } else {
-        // Get size from core model
-        const coreModel = this.model.internalModel.coreModel;
-        modelWidth = coreModel.getCanvasWidth();
-        modelHeight = coreModel.getCanvasHeight();
-        this.logger.log("📐 Got size from core model:", {
-          modelWidth,
-          modelHeight,
-        });
+        // Fallback: try rawModelSettings CanvasSize
+        if (this.rawModelSettings && this.rawModelSettings.CanvasSize) {
+          modelWidth = this.rawModelSettings.CanvasSize.Width;
+          modelHeight = this.rawModelSettings.CanvasSize.Height;
+          this.logger.log("📐 Got size from model settings (fallback):", {
+            modelWidth,
+            modelHeight,
+          });
+        } else {
+          this.logger.warn(
+            "⚠️ Cannot get model pixel size, using default scale",
+          );
+          this.setScale(0.2);
+          this.model.position.set(canvasWidth / 2, canvasHeight / 2);
+          return false;
+        }
       }
 
-      if (!modelWidth || !modelHeight) {
-        this.logger.warn(
-          "⚠️ Cannot get model original size, using default scale",
-        );
-        this.setScale(0.2);
-        this.model.position.set(canvasWidth / 2, canvasHeight / 2);
-        return false;
-      }
-
-      // If size looks unreasonable (too small), use default scale and center
-      if (modelWidth < 100 || modelHeight < 100) {
+      if (!modelWidth || !modelHeight || modelWidth < 1 || modelHeight < 1) {
         this.logger.warn("⚠️ Abnormal model size, using default scale:", {
           modelWidth,
           modelHeight,
@@ -1181,16 +1192,36 @@ export class HeroModel {
    * @returns {Object|null} Object containing width and height
    */
   getModelOriginalSize() {
-    if (!this.model || !this.model.internalModel) {
+    if (!this.model) {
       return null;
     }
 
     try {
-      const coreModel = this.model.internalModel.coreModel;
-      return {
-        width: coreModel.getCanvasWidth(),
-        height: coreModel.getCanvasHeight(),
-      };
+      // Return pixel dimensions at scale 1.0 (same approach as autoFitToCanvas).
+      // model.width/height are the rendered pixel size at the current scale,
+      // so we normalize back to scale 1.0.
+      const currentScaleX = this.model.scale.x || 1;
+      const currentScaleY = this.model.scale.y || 1;
+      const pixelWidth = this.model.width;
+      const pixelHeight = this.model.height;
+
+      if (pixelWidth > 0 && pixelHeight > 0) {
+        return {
+          width: pixelWidth / currentScaleX,
+          height: pixelHeight / currentScaleY,
+        };
+      }
+
+      // Fallback to Cubism core model canvas size (abstract units)
+      if (this.model.internalModel) {
+        const coreModel = this.model.internalModel.coreModel;
+        return {
+          width: coreModel.getCanvasWidth(),
+          height: coreModel.getCanvasHeight(),
+        };
+      }
+
+      return null;
     } catch (error) {
       this.logger.error("❌ Failed to get model original size:", error);
       return null;

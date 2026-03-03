@@ -325,6 +325,8 @@
 
 <script>
 import { ref, computed, h, onMounted } from "vue";
+
+const __DEV__ = import.meta.env.DEV;
 import { darkTheme } from "naive-ui";
 import Live2DViewer from "./components/Live2DViewer.vue";
 import ModelSelector from "./components/ModelSelector.vue";
@@ -449,14 +451,14 @@ export default {
         };
 
         const handleModelSelected = (modelData) => {
-            console.log("Model selected:", modelData);
+            __DEV__ && console.debug("[App] Model selected:", modelData);
             if (live2dViewer.value) {
                 live2dViewer.value.loadModel(modelData);
             }
         };
 
         const handleModelConfigure = (modelData) => {
-            console.log("Configure model:", modelData);
+            __DEV__ && console.debug("[App] Configure model:", modelData);
             activeKey.value = "model-settings";
         };
 
@@ -465,7 +467,7 @@ export default {
         };
 
         const handleSettingsChanged = (settings) => {
-            console.log("Settings changed:", settings);
+            __DEV__ && console.debug("[App] Settings changed:", settings);
         };
 
         const handleComponentError = (errorInfo) => {
@@ -476,7 +478,7 @@ export default {
         };
 
         const handleComponentRetry = () => {
-            console.log("Component retry");
+            __DEV__ && console.debug("[App] Component retry");
             const currentKey = activeKey.value;
             activeKey.value = "";
             setTimeout(() => {
@@ -485,7 +487,7 @@ export default {
         };
 
         onMounted(() => {
-            console.log("Application initialized");
+            __DEV__ && console.debug("[App] Application initialized");
             themeStore.initTheme();
         });
 

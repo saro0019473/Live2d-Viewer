@@ -3,12 +3,13 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import "./style.css";
 
-// Import optimization utilities
+// Import resource manager for DEV diagnostics
 import { globalResourceManager } from "./utils/resource-manager.js";
-import { globalStateSyncManager } from "./utils/live2d/state-sync-manager.js";
 
 // Import debug configuration
 import { initDebugConfig } from "./config/debug.js";
+
+const __DEV__ = import.meta.env.DEV;
 
 function mountApp() {
   // Create app instance
@@ -23,30 +24,27 @@ function mountApp() {
   // Mount app
   app.mount("#app");
 
-  // Post-startup initialization
-  console.log("🚀 Application started");
-  console.log(
-    "📊 Resource manager status:",
-    globalResourceManager.getResourceCount(),
-  );
-
   // Initialize debug configuration
   initDebugConfig();
 
-  // Enable Live2D debug mode by default in development
-  if (import.meta.env.DEV) {
+  if (__DEV__) {
+    // Post-startup diagnostics (dev only)
+    console.log("🚀 Application started");
+    console.log(
+      "📊 Resource manager status:",
+      globalResourceManager.getResourceCount(),
+    );
+
+    // Enable Live2D debug mode by default in development
     if (!localStorage.getItem("DEBUG_LIVE2D")) {
       window.DEBUG_LIVE2D = true;
       localStorage.setItem("DEBUG_LIVE2D", "true");
       console.log("🔧 Development: Live2D debug mode auto-enabled");
     }
-  }
 
-  // Expose global resource manager in development mode
-  if (import.meta.env.DEV) {
+    // Expose resource manager for debugging
     window.globalResourceManager = globalResourceManager;
-    window.globalStateSyncManager = globalStateSyncManager;
-    console.log("🔧 Development: Global managers exposed to window object");
+    console.log("🔧 Development: globalResourceManager exposed to window");
   }
 }
 

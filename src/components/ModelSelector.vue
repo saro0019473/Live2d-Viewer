@@ -696,6 +696,8 @@
 <script>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 
+const __DEV__ = import.meta.env.DEV;
+
 import { useLive2DStore } from "../stores/live2d";
 
 export default {
@@ -859,13 +861,10 @@ export default {
                 const data = await response.json();
                 if (data && Array.isArray(data.Master)) {
                     masterData.value = data.Master;
-                    console.log(
-                        "[ModelSelector] Model library loaded:",
-                        masterData.value.length,
-                        "games,",
-                        totalModelCount.value,
-                        "total models",
-                    );
+                    __DEV__ &&
+                        console.debug(
+                            `[ModelSelector] Model library loaded: ${masterData.value.length} games, ${totalModelCount.value} total models`,
+                        );
                 } else {
                     console.warn("[ModelSelector] Invalid master data format");
                     masterData.value = [];
@@ -905,10 +904,11 @@ export default {
                     description: `${game.gameName} - ${char.charName} - ${costume.costumeName}`,
                 };
 
-                console.log(
-                    "[ModelSelector] Loading library model:",
-                    modelData,
-                );
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] Loading library model:",
+                        modelData,
+                    );
 
                 if (live2dStore?.setModelData) {
                     live2dStore.setModelData(modelData);
@@ -966,7 +966,11 @@ export default {
                     return;
                 }
 
-                console.log("[ModelSelector] Loading local model:", modelData);
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] Loading local model:",
+                        modelData,
+                    );
                 if (live2dStore?.setModelData) {
                     live2dStore.setModelData(modelData);
                 }
@@ -996,11 +1000,15 @@ export default {
             loading.value = true;
             presetModels.value = [];
             try {
-                console.log("[ModelSelector] Checking server preset models...");
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] Checking server preset models...",
+                    );
 
-                console.log(
-                    "[ModelSelector] Server connection removed, skipping preset models.",
-                );
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] Server connection removed, skipping preset models.",
+                    );
             } catch (error) {
                 console.error(
                     "[ModelSelector] Failed to load model data:",
@@ -1018,7 +1026,11 @@ export default {
 
             loadingPresetModel.value = model.id;
             try {
-                console.log("[ModelSelector] Loading preset model:", model);
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] Loading preset model:",
+                        model,
+                    );
 
                 const modelData = {
                     id: model.id,
@@ -1082,7 +1094,11 @@ export default {
                     return;
                 }
 
-                console.log("[ModelSelector] Adding custom model:", modelData);
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] Adding custom model:",
+                        modelData,
+                    );
                 if (live2dStore?.setModelData) {
                     live2dStore.setModelData(modelData);
                 }
@@ -1106,7 +1122,8 @@ export default {
 
         const removeModel = async (model) => {
             try {
-                console.log("[ModelSelector] Removing model:", model);
+                __DEV__ &&
+                    console.debug("[ModelSelector] Removing model:", model);
 
                 // 1. Remove model from Live2DManager/PIXI scene
                 if (live2dStore?.manager) {
@@ -1142,7 +1159,7 @@ export default {
         };
 
         const configureModel = (model) => {
-            console.log("[ModelSelector] Configure model:", model);
+            __DEV__ && console.debug("[ModelSelector] Configure model:", model);
             emit("model-configure", model);
         };
 
@@ -1172,17 +1189,19 @@ export default {
 
         // Model config update handler (via window events)
         const handleModelConfigUpdate = (event) => {
-            console.log(
-                "[ModelSelector] Received model config update:",
-                event.detail,
-            );
+            __DEV__ &&
+                console.debug(
+                    "[ModelSelector] Received model config update:",
+                    event.detail,
+                );
             const config = event.detail;
 
             if (config.model_info) {
-                console.log(
-                    "[ModelSelector] Updating preset model info:",
-                    config.model_info,
-                );
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] Updating preset model info:",
+                        config.model_info,
+                    );
 
                 const serverModel = {
                     id: config.model_info.name || "server-model",
@@ -1193,15 +1212,17 @@ export default {
                 };
                 presetModels.value = [serverModel];
 
-                console.log(
-                    "[ModelSelector] Preset model list updated:",
-                    presetModels.value,
-                );
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] Preset model list updated:",
+                        presetModels.value,
+                    );
             } else {
                 presetModels.value = [];
-                console.log(
-                    "[ModelSelector] New config has no model info, clearing preset model list.",
-                );
+                __DEV__ &&
+                    console.debug(
+                        "[ModelSelector] New config has no model info, clearing preset model list.",
+                    );
             }
         };
 
@@ -1223,11 +1244,12 @@ export default {
                             value: model,
                         }))
                         .sort((a, b) => a.label.localeCompare(b.label));
-                    console.log(
-                        "[ModelSelector] Local model index loaded successfully:",
-                        localModelOptions.value.length,
-                        "models",
-                    );
+                    __DEV__ &&
+                        console.debug(
+                            "[ModelSelector] Local model index loaded successfully:",
+                            localModelOptions.value.length,
+                            "models",
+                        );
                 }
             } catch (error) {
                 console.error(

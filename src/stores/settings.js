@@ -1,6 +1,16 @@
 import { defineStore } from "pinia";
 import { ref, reactive, watch, onScopeDispose } from "vue";
 
+// Level-aware logger for the settings store.
+// Only "debug" messages are silenced in production; warn/error always surface.
+const __DEV__ = import.meta.env.DEV;
+const _log = {
+  debug: (...args) => __DEV__ && console.debug("[SettingsStore]", ...args),
+  info: (...args) => __DEV__ && console.log("[SettingsStore]", ...args),
+  warn: (...args) => console.warn("[SettingsStore]", ...args),
+  error: (...args) => console.error("[SettingsStore]", ...args),
+};
+
 /**
  * Debounce helper — returns a debounced version of `fn`.
  * The returned function also exposes `.cancel()` for cleanup.
@@ -24,23 +34,22 @@ function debounce(fn, delay) {
 }
 
 export const useSettingsStore = defineStore("settings", () => {
-  // Application settings
+  // ── Application settings ───────────────────────────────────────────────────
   const appSettings = reactive({
-    theme: "dark", // 'light', 'dark', 'auto'
+    theme: "dark", // 'light' | 'dark' | 'auto'
     language: "zh-CN",
     autoSave: true,
-    autoSaveInterval: 30000, // 30 seconds
     enableNotifications: true,
     enableSounds: true,
     debugMode: false,
   });
 
-  // Feature module enable status
+  // ── Feature-module flags ───────────────────────────────────────────────────
   const moduleSettings = reactive({
     enableLive2D: true,
   });
 
-  // Performance settings
+  // ── Performance settings ───────────────────────────────────────────────────
   const performanceSettings = reactive({
     maxFPS: 60,
     enableVSync: true,
@@ -51,39 +60,7 @@ export const useSettingsStore = defineStore("settings", () => {
     enableGPUAcceleration: true,
   });
 
-  // Security settings
-  const securitySettings = reactive({
-    allowExternalConnections: false,
-    enableCORS: true,
-    maxRequestSize: 10, // MB
-    enableRateLimit: true,
-    rateLimitRequests: 100,
-    rateLimitWindow: 60000, // 1 minute
-    enableEncryption: false,
-  });
-
-  // Developer settings
-  const developerSettings = reactive({
-    enableDevTools: false,
-    enableConsoleLogging: true,
-    logLevel: "info", // 'debug', 'info', 'warn', 'error'
-    enablePerformanceMonitoring: false,
-    enableMemoryMonitoring: false,
-    enableNetworkMonitoring: false,
-  });
-
-  // Import/export settings
-  const backupSettings = reactive({
-    autoBackup: true,
-    backupInterval: 24 * 60 * 60 * 1000, // 24 hours
-    maxBackups: 10,
-    backupLocation: "local",
-    includeUserData: true,
-    includeModelData: false,
-    compressBackups: true,
-  });
-
-  // Settings version and metadata
+  // ── Metadata ───────────────────────────────────────────────────────────────
   const settingsMetadata = ref({
     version: "1.0.0",
     lastModified: Date.now(),
@@ -91,89 +68,65 @@ export const useSettingsStore = defineStore("settings", () => {
     configFile: null,
   });
 
-  // Local storage key name
+  // ── Persistence ────────────────────────────────────────────────────────────
   const STORAGE_KEY = "vtuber-app-settings";
 
-  // ── Internal save (synchronous write to localStorage) ──────────────────────────
   const _saveSettingsImmediate = () => {
     try {
-      const settings = {
+      const snapshot = {
         appSettings: { ...appSettings },
         moduleSettings: { ...moduleSettings },
         performanceSettings: { ...performanceSettings },
-        securitySettings: { ...securitySettings },
-        developerSettings: { ...developerSettings },
-        backupSettings: { ...backupSettings },
         settingsMetadata: {
           ...settingsMetadata.value,
           lastModified: Date.now(),
         },
       };
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
       settingsMetadata.value.lastModified = Date.now();
-
-      console.log("💾 [SettingsStore] Settings saved to local storage");
+      _log.info("💾 Settings saved");
     } catch (error) {
-      console.error("❌ [SettingsStore] Failed to save settings:", error);
+      _log.error("❌ Failed to save settings:", error);
     }
   };
 
-  // Debounced save — coalesces rapid changes into one write (500 ms)
+  // Debounced save — coalesces rapid mutations into one localStorage write.
   const _debouncedSave = debounce(_saveSettingsImmediate, 500);
 
-  // Public API keeps backward-compat name; callers that truly need
-  // an immediate flush (reset / import) use `_saveSettingsImmediate`.
-  const saveSettings = () => {
-    _debouncedSave();
-  };
+  // Public alias (keeps any future callers working).
+  const saveSettings = () => _debouncedSave();
 
-  // Load settings
+  // ── Load ───────────────────────────────────────────────────────────────────
   const loadSettings = () => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
+      if (!stored) return;
 
-        if (parsed.appSettings) {
-          Object.assign(appSettings, parsed.appSettings);
-        }
-        if (parsed.moduleSettings) {
-          Object.assign(moduleSettings, parsed.moduleSettings);
-        }
-        if (parsed.performanceSettings) {
-          Object.assign(performanceSettings, parsed.performanceSettings);
-        }
-        if (parsed.securitySettings) {
-          Object.assign(securitySettings, parsed.securitySettings);
-        }
-        if (parsed.developerSettings) {
-          Object.assign(developerSettings, parsed.developerSettings);
-        }
-        if (parsed.backupSettings) {
-          Object.assign(backupSettings, parsed.backupSettings);
-        }
-        if (parsed.settingsMetadata) {
-          settingsMetadata.value = {
-            ...settingsMetadata.value,
-            ...parsed.settingsMetadata,
-          };
-        }
+      const parsed = JSON.parse(stored);
 
-        console.log("⚙️ [SettingsStore] Settings loaded from local storage");
-      }
+      if (parsed.appSettings) Object.assign(appSettings, parsed.appSettings);
+      if (parsed.moduleSettings)
+        Object.assign(moduleSettings, parsed.moduleSettings);
+      if (parsed.performanceSettings)
+        Object.assign(performanceSettings, parsed.performanceSettings);
+      if (parsed.settingsMetadata)
+        settingsMetadata.value = {
+          ...settingsMetadata.value,
+          ...parsed.settingsMetadata,
+        };
+
+      _log.info("⚙️ Settings loaded");
     } catch (error) {
-      console.error("❌ [SettingsStore] Failed to load settings:", error);
+      _log.error("❌ Failed to load settings:", error);
     }
   };
 
-  // Reset settings
+  // ── Reset ──────────────────────────────────────────────────────────────────
   const resetSettings = () => {
     Object.assign(appSettings, {
       theme: "dark",
       language: "zh-CN",
       autoSave: true,
-      autoSaveInterval: 30000,
       enableNotifications: true,
       enableSounds: true,
       debugMode: false,
@@ -193,35 +146,6 @@ export const useSettingsStore = defineStore("settings", () => {
       enableGPUAcceleration: true,
     });
 
-    Object.assign(securitySettings, {
-      allowExternalConnections: false,
-      enableCORS: true,
-      maxRequestSize: 10,
-      enableRateLimit: true,
-      rateLimitRequests: 100,
-      rateLimitWindow: 60000,
-      enableEncryption: false,
-    });
-
-    Object.assign(developerSettings, {
-      enableDevTools: false,
-      enableConsoleLogging: true,
-      logLevel: "info",
-      enablePerformanceMonitoring: false,
-      enableMemoryMonitoring: false,
-      enableNetworkMonitoring: false,
-    });
-
-    Object.assign(backupSettings, {
-      autoBackup: true,
-      backupInterval: 24 * 60 * 60 * 1000,
-      maxBackups: 10,
-      backupLocation: "local",
-      includeUserData: true,
-      includeModelData: false,
-      compressBackups: true,
-    });
-
     settingsMetadata.value = {
       version: "1.0.0",
       lastModified: Date.now(),
@@ -229,176 +153,99 @@ export const useSettingsStore = defineStore("settings", () => {
       configFile: null,
     };
 
-    // Reset needs an immediate flush — the watch debounce would
-    // be too late because the user might reload right away.
+    // Flush immediately so a quick reload picks up the reset values.
     _debouncedSave.cancel();
     _saveSettingsImmediate();
-    console.log("🔄 [SettingsStore] Settings reset to default values");
+    _log.info("🔄 Settings reset to defaults");
   };
 
-  // Export settings
+  // ── Export / Import ────────────────────────────────────────────────────────
   const exportSettings = () => {
-    const settings = {
+    const snapshot = {
       appSettings: { ...appSettings },
       moduleSettings: { ...moduleSettings },
       performanceSettings: { ...performanceSettings },
-      securitySettings: { ...securitySettings },
-      developerSettings: { ...developerSettings },
-      backupSettings: { ...backupSettings },
-      settingsMetadata: {
-        ...settingsMetadata.value,
-        exportedAt: Date.now(),
-      },
+      settingsMetadata: { ...settingsMetadata.value, exportedAt: Date.now() },
     };
 
-    const blob = new Blob([JSON.stringify(settings, null, 2)], {
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
       type: "application/json",
     });
-
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `vtuber-settings-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `settings-${new Date().toISOString().split("T")[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    console.log("📤 [SettingsStore] Settings exported");
+    _log.info("📤 Settings exported");
   };
 
-  // Import settings
-  const importSettings = (file) => {
-    return new Promise((resolve, reject) => {
+  const importSettings = (file) =>
+    new Promise((resolve, reject) => {
       const reader = new FileReader();
-
       reader.onload = (e) => {
         try {
           const imported = JSON.parse(e.target.result);
 
-          // Validate settings format
-          if (!imported.appSettings && !imported.moduleSettings) {
+          if (!imported.appSettings && !imported.moduleSettings)
             throw new Error("Invalid settings file format");
-          }
 
-          if (imported.appSettings) {
+          if (imported.appSettings)
             Object.assign(appSettings, imported.appSettings);
-          }
-          if (imported.moduleSettings) {
+          if (imported.moduleSettings)
             Object.assign(moduleSettings, imported.moduleSettings);
-          }
-          if (imported.performanceSettings) {
+          if (imported.performanceSettings)
             Object.assign(performanceSettings, imported.performanceSettings);
-          }
-          if (imported.securitySettings) {
-            Object.assign(securitySettings, imported.securitySettings);
-          }
-          if (imported.developerSettings) {
-            Object.assign(developerSettings, imported.developerSettings);
-          }
-          if (imported.backupSettings) {
-            Object.assign(backupSettings, imported.backupSettings);
-          }
 
-          // Immediate flush so imported data is persisted right away
           _debouncedSave.cancel();
           _saveSettingsImmediate();
-          console.log("📥 [SettingsStore] Settings imported");
+          _log.info("📥 Settings imported");
           resolve();
         } catch (error) {
-          console.error("❌ [SettingsStore] Failed to import settings:", error);
+          _log.error("❌ Failed to import settings:", error);
           reject(error);
         }
       };
-
-      reader.onerror = () => {
-        reject(new Error("File read failed"));
-      };
-
+      reader.onerror = () => reject(new Error("File read failed"));
       reader.readAsText(file);
     });
-  };
 
-  // ── Update helpers ──────────────────────────────────────────
-  // They only mutate the reactive object. The deep-watch (below)
-  // handles the debounced save — no manual saveSettings() needed.
-  const updateAppSettings = (newSettings) => {
-    Object.assign(appSettings, newSettings);
-  };
+  // ── Update helpers ─────────────────────────────────────────────────────────
+  // Each mutates the reactive object; the watcher below handles persistence.
+  const updateAppSettings = (s) => Object.assign(appSettings, s);
+  const updateModuleSettings = (s) => Object.assign(moduleSettings, s);
+  const updatePerformanceSettings = (s) =>
+    Object.assign(performanceSettings, s);
 
-  const updateModuleSettings = (newSettings) => {
-    Object.assign(moduleSettings, newSettings);
-  };
-
-  const updatePerformanceSettings = (newSettings) => {
-    Object.assign(performanceSettings, newSettings);
-  };
-
-  const updateSecuritySettings = (newSettings) => {
-    Object.assign(securitySettings, newSettings);
-  };
-
-  const updateDeveloperSettings = (newSettings) => {
-    Object.assign(developerSettings, newSettings);
-  };
-
-  const updateBackupSettings = (newSettings) => {
-    Object.assign(backupSettings, newSettings);
-  };
-
-  // ── Auto-save: single debounced deep-watch ─────────────────
-  // This is the ONLY automatic persistence path. The `updateXxx`
-  // methods above just mutate state and let this watch handle it.
-  let _autoSaveInterval = null;
-
+  // ── Auto-save watcher ──────────────────────────────────────────────────────
+  // A single debounced deep-watcher replaces the old polling interval.
+  // It only runs when autoSave is enabled, preventing unnecessary writes.
   if (typeof window !== "undefined") {
     watch(
-      [
-        appSettings,
-        moduleSettings,
-        performanceSettings,
-        securitySettings,
-        developerSettings,
-        backupSettings,
-      ],
+      [appSettings, moduleSettings, performanceSettings],
       () => {
-        if (appSettings.autoSave) {
-          _debouncedSave();
-        }
+        if (appSettings.autoSave) _debouncedSave();
       },
       { deep: true },
     );
-
-    // Periodic backup save — as a safety net, not the primary
-    // persistence path. Uses the immediate variant so it is not
-    // coalesced away by the debounce timer.
-    _autoSaveInterval = setInterval(() => {
-      if (appSettings.autoSave) {
-        _saveSettingsImmediate();
-      }
-    }, appSettings.autoSaveInterval);
   }
 
-  // ── Cleanup on scope dispose (prevents interval leak) ──────
+  // ── Cleanup ────────────────────────────────────────────────────────────────
   onScopeDispose(() => {
     _debouncedSave.cancel();
-    if (_autoSaveInterval !== null) {
-      clearInterval(_autoSaveInterval);
-      _autoSaveInterval = null;
-    }
   });
 
-  // Load settings on initialization
+  // Load persisted settings on store creation.
   loadSettings();
 
+  // ── Public API ─────────────────────────────────────────────────────────────
   return {
     // State
     appSettings,
     moduleSettings,
     performanceSettings,
-    securitySettings,
-    developerSettings,
-    backupSettings,
     settingsMetadata,
 
     // Methods
@@ -410,8 +257,5 @@ export const useSettingsStore = defineStore("settings", () => {
     updateAppSettings,
     updateModuleSettings,
     updatePerformanceSettings,
-    updateSecuritySettings,
-    updateDeveloperSettings,
-    updateBackupSettings,
   };
 });

@@ -417,6 +417,29 @@ export class Live2DManager {
   }
 
   /**
+   * Update zoom settings
+   * @param {Object} settings - Zoom settings object
+   * @param {number} [settings.zoomSpeed] - Zoom step
+   * @param {number} [settings.minScale] - Minimum scale value
+   * @param {number} [settings.maxScale] - Maximum scale value
+   */
+  updateZoomSettings(settings) {
+    if (!this.interactionManager) {
+      this.logger.warn(
+        "Interaction manager not initialized, cannot update zoom settings",
+      );
+      return;
+    }
+
+    try {
+      this.interactionManager.updateZoomSettings(settings);
+      this.logger.log("Zoom settings updated:", settings);
+    } catch (error) {
+      this.logger.error("Failed to update zoom settings:", error);
+    }
+  }
+
+  /**
    * Set wheel zoom enabled state
    * @param {boolean} enabled - Whether to enable wheel zoom
    */

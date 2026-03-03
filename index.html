@@ -59,17 +59,27 @@
         </script>
 
         <!-- Load library files in correct order using load/error events -->
+        <!--
+            defer keeps the scripts non-blocking: the browser downloads them in
+            parallel with HTML parsing and executes them in order after the
+            document is parsed, but before DOMContentLoaded.  The inline
+            tracking script above runs synchronously (no defer) so _onLibLoad /
+            _onLibError are always defined before these scripts execute.
+        -->
         <script
+            defer
             src="/libs/pixi-7.4.2.min.js"
             onload="_onLibLoad('pixi')"
             onerror="_onLibError('pixi', event)"
         ></script>
         <script
+            defer
             src="/libs/live2dcubismcore.min.js"
             onload="_onLibLoad('core')"
             onerror="_onLibError('core', event)"
         ></script>
         <script
+            defer
             src="/libs/cubism4.min.js"
             onload="_onLibLoad('cubism')"
             onerror="_onLibError('cubism', event)"

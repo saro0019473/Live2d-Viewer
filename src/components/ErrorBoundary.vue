@@ -52,6 +52,8 @@
 <script>
 import { ref, onErrorCaptured, nextTick } from "vue";
 
+const __DEV__ = import.meta.env.DEV;
+
 export default {
     name: "ErrorBoundary",
     emits: ["error", "retry"],
@@ -131,7 +133,7 @@ export default {
                 return;
             }
 
-            console.log("🔄 [ErrorBoundary] Attempting retry...");
+            __DEV__ && console.debug("[ErrorBoundary] Attempting retry...");
             retryCount.value++;
 
             // Reset error state
@@ -147,7 +149,7 @@ export default {
         };
 
         const goHome = () => {
-            console.log("🏠 [ErrorBoundary] Returning to home");
+            __DEV__ && console.debug("[ErrorBoundary] Returning to home");
             // Reset all state
             hasError.value = false;
             errorMessage.value = "";
