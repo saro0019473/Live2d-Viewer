@@ -1,48 +1,91 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Live2D Viewer</title>
-</head>
-<body>
-  <div id="app"></div>
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Live2D Viewer</title>
+    </head>
+    <body>
+        <div id="app"></div>
 
-  <!-- 按正确顺序加载库文件 -->
-  <script src="/libs/pixi-7.4.2.min.js"></script>
-  <script src="/libs/live2dcubismcore.min.js"></script>
+        <script>
+            // Track loading state for each library script
+            window.__live2dReady = false;
+            var _libsLoaded = { pixi: false, core: false, cubism: false };
+            var _libErrors = [];
 
-  <script src="/libs/cubism4.min.js"></script>
-  <!-- 库加载完成后再加载 Vue 应用 -->
-  <script>
-    // 等待所有库加载完成
-    function checkLibrariesLoaded() {
-      if (typeof PIXI !== 'undefined' &&
-          window.PIXI &&
-          window.PIXI.live2d &&
-          window.PIXI.live2d.Live2DModel &&
-          window.PIXI.live2d.Cubism4ModelSettings) {
-        console.log('✅ 所有库已加载完成，启动 Vue 应用')
+            function _onLibLoad(name) {
+                _libsLoaded[name] = true;
 
-        // 动态加载 Vue 应用
-        const script = document.createElement('script')
-        script.type = 'module'
-        script.src = '/src/main.js'
-        document.body.appendChild(script)
-      } else {
-        console.log('⏳ 等待库加载完成...', {
-          PIXI: typeof PIXI !== 'undefined',
-          live2d: !!window.PIXI?.live2d,
-          Live2DModel: !!window.PIXI?.live2d?.Live2DModel,
-          Cubism4ModelSettings: !!window.PIXI?.live2d?.Cubism4ModelSettings
-        })
-        setTimeout(checkLibrariesLoaded, 100)
-      }
-    }
+                // All three must be loaded before we check the globals
+                if (
+                    !_libsLoaded.pixi ||
+                    !_libsLoaded.core ||
+                    !_libsLoaded.cubism
+                ) {
+                    return;
+                }
 
-    // 开始检查
-    setTimeout(checkLibrariesLoaded, 100)
-  </script>
-</body>
+                // Verify the expected globals actually exist
+                if (
+                    typeof PIXI !== "undefined" &&
+                    window.PIXI &&
+                    window.PIXI.live2d &&
+                    window.PIXI.live2d.Live2DModel &&
+                    window.PIXI.live2d.Cubism4ModelSettings
+                ) {
+                    console.log("✅ All libraries loaded");
+                    window.__live2dReady = true;
+                    window.dispatchEvent(new Event("live2d-ready"));
+                } else {
+                    console.error(
+                        "❌ Library scripts loaded but expected globals are missing",
+                        {
+                            PIXI: typeof PIXI !== "undefined",
+                            live2d: !!window.PIXI?.live2d,
+                            Live2DModel: !!window.PIXI?.live2d?.Live2DModel,
+                            Cubism4ModelSettings:
+                                !!window.PIXI?.live2d?.Cubism4ModelSettings,
+                        },
+                    );
+                }
+            }
+
+            function _onLibError(name, event) {
+                _libErrors.push(name);
+                console.error("❌ Failed to load library:", name, event);
+            }
+        </script>
+
+        <!-- Load library files in correct order using load/error events -->
+        <!--
+            defer keeps the scripts non-blocking: the browser downloads them in
+            parallel with HTML parsing and executes them in order after the
+            document is parsed, but before DOMContentLoaded.  The inline
+            tracking script above runs synchronously (no defer) so _onLibLoad /
+            _onLibError are always defined before these scripts execute.
+        -->
+        <script
+            defer
+            src="/libs/pixi-7.4.2.min.js"
+            onload="_onLibLoad('pixi')"
+            onerror="_onLibError('pixi', event)"
+        ></script>
+        <script
+            defer
+            src="/libs/live2dcubismcore.min.js"
+            onload="_onLibLoad('core')"
+            onerror="_onLibError('core', event)"
+        ></script>
+        <script
+            defer
+            src="/libs/cubism4.min.js"
+            onload="_onLibLoad('cubism')"
+            onerror="_onLibError('cubism', event)"
+        ></script>
+
+        <!-- Vite entry point (detected and bundled during build) -->
+        <script type="module" src="/src/main.js"></script>
+    </body>
 </html>

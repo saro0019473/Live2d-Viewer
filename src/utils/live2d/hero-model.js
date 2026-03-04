@@ -1,237 +1,289 @@
 /**
- * HeroModel 类
- * 封装 Live2D 模型的加载、控制和信息获取
+ * HeroModel Class
+ * Wraps Live2D model loading, control, and information retrieval
  */
 
-import { waitForLive2D, createLogger } from './utils.js'
+import { waitForLive2D, createLogger } from "./utils.js";
 
-// 高阶函数：统一空值检查
-const withModelCheck = (method, operationName = '操作') => {
-  return function(...args) {
+// Higher-order function: unified null check
+const withModelCheck = (method, operationName = "operation") => {
+  return function (...args) {
     if (!this.model) {
-      this.logger.warn(`⚠️ 模型未加载，无法${operationName}`)
-      return false
+      this.logger.warn(`⚠️ Model not loaded, cannot perform ${operationName}`);
+      return false;
     }
-    if (!this.model.internalModel && operationName.includes('参数')) {
-      this.logger.warn(`⚠️ 内部模型未准备好，无法${operationName}`)
-      return false
+    if (!this.model.internalModel && operationName.includes("parameter")) {
+      this.logger.warn(
+        `⚠️ Internal model not ready, cannot perform ${operationName}`,
+      );
+      return false;
     }
-    return method.apply(this, args)
-  }
-}
+    return method.apply(this, args);
+  };
+};
 
-// 高阶函数：统一错误处理
-const withErrorHandling = (method, operationName = '操作') => {
-  return async function(...args) {
+// Higher-order function: unified error handling
+const withErrorHandling = (method, operationName = "operation") => {
+  return async function (...args) {
     try {
-      return await method.apply(this, args)
+      return await method.apply(this, args);
     } catch (error) {
-      this.logger.error(`❌ ${operationName}失败:`, error)
-      return false
+      this.logger.error(`❌ ${operationName} failed:`, error);
+      return false;
     }
-  }
-}
+  };
+};
 
-// 统一参数操作工具
+// Unified parameter operation utilities
 const ParameterUtils = {
-  // 设置参数值
-  setParameterValue(model, paramId, value, parametersValues, weight = 1, logger) {
-    if (!model?.internalModel?.coreModel) return false
-    
+  // Set parameter value
+  setParameterValue(
+    model,
+    paramId,
+    value,
+    parametersValues,
+    weight = 1,
+    logger,
+  ) {
+    if (!model?.internalModel?.coreModel) return false;
+
     try {
-      model.internalModel.coreModel.setParameterValueById(paramId, value, weight)
-      
-      // 同步更新内部存储
-      const paramIndex = parametersValues.parameter?.findIndex(param => param.parameterIds === paramId)
+      model.internalModel.coreModel.setParameterValueById(
+        paramId,
+        value,
+        weight,
+      );
+
+      // Sync update internal storage
+      const paramIndex = parametersValues.parameter?.findIndex(
+        (param) => param.parameterIds === paramId,
+      );
       if (paramIndex !== -1) {
-        parametersValues.parameter[paramIndex].defaultValue = value
+        parametersValues.parameter[paramIndex].defaultValue = value;
       }
-      return true
+      return true;
     } catch (error) {
-      logger.error('设置参数失败:', error)
-      return false
+      logger.error("Failed to set parameter:", error);
+      return false;
     }
   },
 
-  // 设置部件不透明度
+  // Set part opacity
   setPartOpacity(model, partId, value, parametersValues, logger) {
-    if (!model?.internalModel?.coreModel) return false
-    
+    if (!model?.internalModel?.coreModel) return false;
+
     try {
-      model.internalModel.coreModel.setPartOpacityById(partId, value)
-      
-      // 同步更新内部存储
-      const part = parametersValues.partOpacity?.find(p => p.partId === partId)
+      model.internalModel.coreModel.setPartOpacityById(partId, value);
+
+      // Sync update internal storage
+      const part = parametersValues.partOpacity?.find(
+        (p) => p.partId === partId,
+      );
       if (part) {
-        part.defaultValue = value
+        part.defaultValue = value;
       }
-      return true
+      return true;
     } catch (error) {
-      logger.error('设置部件不透明度失败:', error)
-      return false
+      logger.error("Failed to set part opacity:", error);
+      return false;
     }
-  }
-}
+  },
+};
 
 export class HeroModel {
   constructor(id, model) {
-    this.id = id
-    this.model = model
-    this._destroyed = false
-    this.logger = createLogger(`HeroModel:${this.id}`)
-    
-    // 模型相关属性
-    this.modelName = ''
-    this.costume = ''
-    this.cubismModelSettings = null
-    this.rawModelSettings = null
-    
-    // 缓存数据
-    this.cachedExpressions = []
-    this.cachedMotions = {}
-    this.parametersValues = {}
-    
-    // 前景对象
-    this.foreground = null
+    this.id = id;
+    this.model = model;
+    this._destroyed = false;
+    this.logger = createLogger(`HeroModel:${this.id}`);
+
+    // Model-related properties
+    this.modelName = "";
+    this.costume = "";
+    this.cubismModelSettings = null;
+    this.rawModelSettings = null;
+
+    // Cached data
+    this.cachedExpressions = [];
+    this.cachedMotions = {};
+    this.parametersValues = {};
+
+    // Foreground object
+    this.foreground = null;
   }
 
   /**
-   * 异步创建并加载 Live2D 模型
-   * @param {string} src - 模型设置文件的URL或路径
+   * Asynchronously create and load a Live2D model
+   * @param {string} src - URL or path of the model settings file
    */
   async create(src) {
     try {
-      // 等待本地 PIXI Live2D 库完全加载
-      await waitForLive2D()
+      // Wait for local PIXI Live2D library to fully load
+      await waitForLive2D();
 
-      this.logger.log('🔄 开始创建模型:', src)
+      this.logger.log("🔄 Starting model creation:", src);
 
-      // 获取模型设置 JSON 文件
-      const response = await fetch(src)
-      if (!response.ok) {
-        throw new Error(`模型设置文件加载失败: ${response.status} ${response.statusText}`)
-      }
-      
-      const settingsJSON = await response.json()
-      settingsJSON.url = src
-
-      this.logger.log('📄 原始设置 JSON:', settingsJSON)
-
-      // 使用 PIXI Live2D 创建模型设置实例
+      // Verify necessary global classes exist
       if (!window.PIXI.live2d.Cubism4ModelSettings) {
-        throw new Error('❌ 本地 Cubism4ModelSettings 未加载，请检查 /libs/cubism4.min.js')
+        throw new Error(
+          "❌ Local Cubism4ModelSettings not loaded, please check /libs/cubism4.min.js",
+        );
       }
-      this.cubismModelSettings = new window.PIXI.live2d.Cubism4ModelSettings(settingsJSON)
-
-      // 使用 PIXI Live2D 创建模型
       if (!window.PIXI.live2d.Live2DModel) {
-        throw new Error('❌ 本地 Live2DModel 未加载，请检查 /libs/cubism4.min.js')
+        throw new Error(
+          "❌ Local Live2DModel not loaded, please check /libs/cubism4.min.js",
+        );
       }
 
-      // 创建模型并等待加载完成
-      this.model = await window.PIXI.live2d.Live2DModel.from(settingsJSON)
-      
-      // 验证模型实例
+      // Fetch model settings JSON file (only fetch once)
+      const response = await fetch(src);
+      if (!response.ok) {
+        throw new Error(
+          `Model settings file load failed: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const settingsJSON = await response.json();
+      settingsJSON.url = src;
+
+      this.logger.log("📄 Raw settings JSON:", settingsJSON);
+
+      // Create Cubism4ModelSettings instance
+      this.cubismModelSettings = new window.PIXI.live2d.Cubism4ModelSettings(
+        settingsJSON,
+      );
+
+      // Create model using the already-built ModelSettings instance to avoid Live2DModel.from()
+      // fetching the same JSON again (pass settings object instead of raw JSON)
+      this.model = await window.PIXI.live2d.Live2DModel.from(
+        this.cubismModelSettings,
+      );
+
+      // Verify model instance
       if (!this.model) {
-        throw new Error('模型创建失败：模型实例为空')
+        throw new Error("Model creation failed: model instance is null");
       }
 
-      // 保存原始设置 JSON
-      this.rawModelSettings = settingsJSON
+      // Save raw settings JSON
+      this.rawModelSettings = settingsJSON;
 
-      // 设置初始位置和缩放
-      this.model.position.set(0, 0)
-      this.model.scale.set(0.2) // 使用您设置的默认缩放值
+      // Set initial position and scale
+      this.model.position.set(0, 0);
+      this.model.scale.set(0.2); // Use the configured default scale value
 
-      // 等待模型完全加载后初始化参数
+      // Initialize parameters after model is fully loaded
       if (this.model.internalModel) {
         this.initializeParameters();
       } else {
-        // 监听模型准备就绪事件
+        // Listen for model ready event
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
-            reject(new Error('模型初始化超时'))
-          }, 30000)
+            reject(new Error("Model initialization timeout"));
+          }, 30000);
 
-          this.model.once('ready', () => {
-            clearTimeout(timeout)
-            this.logger.log('📢 模型ready事件触发，初始化参数')
-            this.initializeParameters()
-            resolve()
-          })
+          this.model.once("ready", () => {
+            clearTimeout(timeout);
+            this.logger.log(
+              "📢 Model ready event fired, initializing parameters",
+            );
+            this.initializeParameters();
+            resolve();
+          });
 
-          this.model.once('error', (error) => {
-            clearTimeout(timeout)
-            reject(error)
-          })
-        })
+          this.model.once("error", (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+        });
       }
 
-      // 立即缓存表情和动作数据
-      this.cacheModelData()
+      // Immediately cache expression and motion data
+      this.cacheModelData();
 
-      return this
+      return this;
     } catch (error) {
-      this.logger.error('❌ 创建失败:', error)
-      
-      // 清理资源
+      this.logger.error("❌ Creation failed:", error);
+
+      // Clean up resources
       if (this.model) {
         try {
-          this.model.removeAllListeners()
-          this.model.destroy({ children: true, texture: true, baseTexture: true })
+          this.model.removeAllListeners();
+          this.model.destroy({
+            children: true,
+            texture: true,
+            baseTexture: true,
+          });
         } catch (cleanupError) {
-          this.logger.error('❌ 清理失败模型时出错:', cleanupError)
+          this.logger.error("❌ Error cleaning up failed model:", cleanupError);
         }
       }
-      
-      throw error
+
+      throw error;
     }
   }
 
   /**
-   * 缓存模型数据（表情、动作等）
+   * Cache model data (expressions, motions, etc.)
    */
   cacheModelData() {
-    // 缓存表情数据
-    this.cachedExpressions = this.cubismModelSettings.expressions || []
+    // Cache expression data
+    this.cachedExpressions = this.cubismModelSettings.expressions || [];
 
-    // 缓存动作数据
-    this.cachedMotions = this.cubismModelSettings.motions || {}
+    // Cache motion data
+    this.cachedMotions = this.cubismModelSettings.motions || {};
   }
 
   initializeParameters(retries = 5, delay = 200) {
     if (this._destroyed) {
-      this.logger.log('模型已销毁，取消参数初始化。');
+      this.logger.log(
+        "Model already destroyed, cancelling parameter initialization.",
+      );
       return;
     }
 
-    if (!this.model || !this.model.internalModel || !this.model.internalModel.coreModel) {
-      this.logger.warn('⚠️ 内部模型或核心模型未准备好，无法初始化参数。');
+    if (
+      !this.model ||
+      !this.model.internalModel ||
+      !this.model.internalModel.coreModel
+    ) {
+      this.logger.warn(
+        "⚠️ Internal model or core model not ready, cannot initialize parameters.",
+      );
       if (retries > 0) {
-        this.logger.log(`[HeroModel] 将在 ${delay}ms 后重试参数初始化... (${retries} 次剩余)`);
+        this.logger.log(
+          `[HeroModel] Will retry parameter initialization in ${delay}ms... (${retries} remaining)`,
+        );
         setTimeout(() => this.initializeParameters(retries - 1, delay), delay);
       } else {
-        this.logger.error('❌ [HeroModel] 参数初始化失败，已达最大重试次数。');
+        this.logger.error(
+          "❌ [HeroModel] Parameter initialization failed, max retries reached.",
+        );
       }
       return;
     }
 
     this.parametersValues = {};
-    this.logger.log('⚙️ [HeroModel] initializeParameters: 开始初始化参数。');
+    this.logger.log(
+      "⚙️ [HeroModel] initializeParameters: Starting parameter initialization.",
+    );
     const coreModel = this.model.internalModel.coreModel;
 
-    // 优先从模型设置文件(.model3.json)中读取参数定义
+    // Prefer reading parameter definitions from model settings file (.model3.json)
     this.parametersValues.parameter = [];
     if (this.rawModelSettings && this.rawModelSettings.Parameters) {
       const paramDefs = this.rawModelSettings.Parameters;
-      this.logger.log(`⚙️ [HeroModel] 从JSON定义中找到 ${paramDefs.length} 个参数。`);
+      this.logger.log(
+        `⚙️ [HeroModel] Found ${paramDefs.length} parameters in JSON definitions.`,
+      );
 
       for (const paramDef of paramDefs) {
         const paramId = paramDef.Id;
         const paramIndex = coreModel.getParameterIndex(paramId);
 
         if (paramIndex === -1) {
-          this.logger.warn(`⚠️ 参数ID "${paramId}" 在核心模型中未找到。`);
+          this.logger.warn(
+            `⚠️ Parameter ID "${paramId}" not found in core model.`,
+          );
           continue;
         }
 
@@ -239,22 +291,28 @@ export class HeroModel {
           parameterIds: paramId,
           max: coreModel.getParameterMaximumValue(paramIndex),
           min: coreModel.getParameterMinimumValue(paramIndex),
-          defaultValue: coreModel.getParameterDefaultValue(paramIndex)
+          defaultValue: coreModel.getParameterDefaultValue(paramIndex),
         };
         this.parametersValues.parameter.push(parameter);
       }
-      this.logger.log(`✅ [HeroModel] 已成功从JSON定义初始化 ${this.parametersValues.parameter.length} 个参数。`);
+      this.logger.log(
+        `✅ [HeroModel] Successfully initialized ${this.parametersValues.parameter.length} parameters from JSON definitions.`,
+      );
     } else {
-      // 如果JSON中没有定义，则回退到从 Live2DCubismCore.Model 获取 ID
-      this.logger.warn('⚠️ 在模型JSON中未找到参数定义，回退到核心模型遍历。');
-      
-      // 正确的方式是从 coreModel.getModel() 获取底层模型，然后访问其参数
+      // If not defined in JSON, fall back to getting IDs from Live2DCubismCore.Model
+      this.logger.log(
+        "ℹ️ No parameter definitions found in model JSON, falling back to core model traversal.",
+      );
+
+      // The correct way is to get the underlying model from coreModel.getModel(), then access its parameters
       const live2dCoreModel = coreModel.getModel();
       const parameterIds = live2dCoreModel.parameters.ids;
       const parameterCount = live2dCoreModel.parameters.count;
 
       if (parameterCount === 0 && retries > 0) {
-        this.logger.warn(`⚠️ [HeroModel] 发现参数数量为 0，可能模型尚未完全加载。将在 ${delay}ms 后重试。`);
+        this.logger.warn(
+          `⚠️ [HeroModel] Found 0 parameters, model may not be fully loaded. Will retry in ${delay}ms.`,
+        );
         setTimeout(() => this.initializeParameters(retries - 1, delay), delay);
         return;
       }
@@ -264,813 +322,989 @@ export class HeroModel {
         // getParameterIndex is on coreModel (CubismModel), not the Live2DCubismCore.Model
         const paramIndex = coreModel.getParameterIndex(paramId);
         if (paramIndex === -1) {
-          this.logger.warn(`⚠️ 参数ID "${paramId}" 在核心模型中未找到索引。`);
+          this.logger.warn(
+            `⚠️ Parameter ID "${paramId}" index not found in core model.`,
+          );
           continue;
         }
         this.parametersValues.parameter.push({
           parameterIds: paramId,
           max: coreModel.getParameterMaximumValue(paramIndex),
           min: coreModel.getParameterMinimumValue(paramIndex),
-          defaultValue: coreModel.getParameterDefaultValue(paramIndex)
+          defaultValue: coreModel.getParameterDefaultValue(paramIndex),
         });
       }
-      this.logger.log(`✅ [HeroModel] 已成功从核心模型遍历初始化 ${this.parametersValues.parameter.length} 个参数。`);
+      this.logger.log(
+        `✅ [HeroModel] Successfully initialized ${this.parametersValues.parameter.length} parameters from core model traversal.`,
+      );
     }
 
-    // 初始化部件（逻辑不变）
+    // Initialize parts (logic unchanged)
     this.parametersValues.partOpacity = [];
     const partCount = coreModel.getPartCount();
-    this.logger.log(`⚙️ [HeroModel] 发现 ${partCount} 个核心模型部件。`);
+    this.logger.log(`⚙️ [HeroModel] Found ${partCount} core model parts.`);
     for (let i = 0; i < partCount; i++) {
       const partId = coreModel.getPartId(i);
       this.parametersValues.partOpacity.push({
         partId: partId,
-        defaultValue: coreModel.getPartOpacityByIndex(i)
+        defaultValue: coreModel.getPartOpacityByIndex(i),
       });
     }
-    this.logger.log(`✅ [HeroModel] 已成功初始化 ${this.parametersValues.partOpacity.length} 个部件。`);
+    this.logger.log(
+      `✅ [HeroModel] Successfully initialized ${this.parametersValues.partOpacity.length} parts.`,
+    );
 
-    // 新增：健全性检查和重试逻辑
-    // 如果参数列表为空，但部件列表不为空，说明参数可能未正确加载，进行重试
-    if (this.parametersValues.parameter.length === 0 && this.parametersValues.partOpacity.length > 0 && retries > 0) {
-      this.logger.warn(`⚠️ [HeroModel] 参数初始化后数量为0，但部件数量为 ${this.parametersValues.partOpacity.length}。可能存在加载时序问题，将在 ${delay}ms 后重试。`);
+    // Sanity check and retry logic
+    // If parameter list is empty but part list is not, parameters may not have loaded correctly - retry
+    if (
+      this.parametersValues.parameter.length === 0 &&
+      this.parametersValues.partOpacity.length > 0 &&
+      retries > 0
+    ) {
+      this.logger.warn(
+        `⚠️ [HeroModel] Parameter count is 0 after initialization, but part count is ${this.parametersValues.partOpacity.length}. Possible loading timing issue, will retry in ${delay}ms.`,
+      );
       setTimeout(() => this.initializeParameters(retries - 1, delay), delay);
-      return; // 必须返回，防止后续代码执行
+      return; // Must return to prevent subsequent code execution
     }
   }
 
   /**
-   * 设置模型名称和服装名称
-   * @param {string} char - 角色名称
-   * @param {string} cost - 服装名称
+   * Set model name and costume name
+   * @param {string} char - Character name
+   * @param {string} cost - Costume name
    */
   setName(char, cost) {
-    this.modelName = char
-    this.costume = cost
+    this.modelName = char;
+    this.costume = cost;
   }
 
-  // 使用高阶函数优化所有setter/getter方法
-  setAnchor = withModelCheck(function(x, y) {
-    this.model.anchor.set(x, y)
-  }, '设置锚点')
+  // Optimize all setter/getter methods using higher-order functions
+  setAnchor = withModelCheck(function (x, y) {
+    this.model.anchor.set(x, y);
+  }, "set anchor");
 
   getAnchor() {
-    if (!this.model) return { x: 0.5, y: 0.5 }
-    return { x: this.model.anchor.x, y: this.model.anchor.y }
+    if (!this.model) return { x: 0.5, y: 0.5 };
+    return { x: this.model.anchor.x, y: this.model.anchor.y };
   }
 
-  setScale = withModelCheck(function(val) {
-    this.model.scale.set(val)
-  }, '设置缩放')
+  setScale = withModelCheck(function (val) {
+    this.model.scale.set(val);
+  }, "set scale");
 
   getScale() {
-    if (!this.model) return { x: 1, y: 1 }
-    return { x: this.model.scale.x, y: this.model.scale.y }
+    if (!this.model) return { x: 1, y: 1 };
+    return { x: this.model.scale.x, y: this.model.scale.y };
   }
 
-  setVisible = withModelCheck(function(val) {
-    this.model.visible = val
-  }, '设置可见性')
+  setVisible = withModelCheck(function (val) {
+    this.model.visible = val;
+  }, "set visibility");
 
   getVisible() {
-    if (!this.model) return false
-    return this.model.visible
+    if (!this.model) return false;
+    return this.model.visible;
   }
 
-  setAngle = withModelCheck(function(val) {
-    this.model.angle = val
-  }, '设置角度')
+  setAngle = withModelCheck(function (val) {
+    this.model.angle = val;
+  }, "set angle");
 
   getAngle() {
-    if (!this.model) return 0
-    return this.model.angle
+    if (!this.model) return 0;
+    return this.model.angle;
   }
 
-  setAlpha = withModelCheck(function(val) {
-    this.model.alpha = val
-  }, '设置透明度')
+  setAlpha = withModelCheck(function (val) {
+    this.model.alpha = val;
+  }, "set alpha");
 
   getAlpha() {
-    if (!this.model) return 1
-    return this.model.alpha
+    if (!this.model) return 1;
+    return this.model.alpha;
   }
 
-  setPosition = withModelCheck(function(x, y) {
-    this.model.position.set(x, y)
-  }, '设置位置')
+  setPosition = withModelCheck(function (x, y) {
+    this.model.position.set(x, y);
+  }, "set position");
 
   getPosition() {
-    if (!this.model) return { x: 0, y: 0 }
-    return { x: this.model.position.x, y: this.model.position.y }
+    if (!this.model) return { x: 0, y: 0 };
+    return { x: this.model.position.x, y: this.model.position.y };
   }
 
   /**
-   * 设置前景
-   * @param {PIXI.Sprite} sprite - 前景精灵
+   * Set foreground
+   * @param {PIXI.Sprite} sprite - Foreground sprite
    */
   setForeground(sprite) {
-    if (!this.model) return
-    this.foreground = sprite
-    this.model.addChild(sprite)
+    if (!this.model) return;
+    this.foreground = sprite;
+    this.model.addChild(sprite);
   }
 
   /**
-   * 设置呼吸动画 - 优化版本
-   * @param {boolean} bool - 是否启用呼吸
+   * Set breathing animation - optimized version
+   * @param {boolean} bool - Whether to enable breathing
    */
-  setBreathing = withModelCheck(function(bool) {
-    this.model.breathing = bool
+  setBreathing = withModelCheck(function (bool) {
+    this.model.breathing = bool;
 
     if (!this.model.internalModel?.breath) {
-      this.logger.warn('⚠️ 呼吸功能不可用')
-      return
+      this.logger.warn("⚠️ Breathing feature not available");
+      return;
     }
 
     try {
-      // 如果parametersValues.breath没有初始化，尝试从内部模型获取
+      // If parametersValues.breath is not initialized, try to get from internal model
       if (!this.parametersValues.breath) {
-        const breathParams = this.model.internalModel.breath.getParameters()
-        this.parametersValues.breath = breathParams ? [...breathParams] : []
+        const breathParams = this.model.internalModel.breath.getParameters();
+        this.parametersValues.breath = breathParams ? [...breathParams] : [];
       }
 
-      // 使用setParameters方法设置呼吸参数
-      if (bool && this.parametersValues.breath && this.parametersValues.breath.length > 0) {
-        this.model.internalModel.breath.setParameters([...this.parametersValues.breath])
+      // Use setParameters method to set breathing parameters
+      if (
+        bool &&
+        this.parametersValues.breath &&
+        this.parametersValues.breath.length > 0
+      ) {
+        this.model.internalModel.breath.setParameters([
+          ...this.parametersValues.breath,
+        ]);
       } else {
-        this.model.internalModel.breath.setParameters([])
+        this.model.internalModel.breath.setParameters([]);
       }
-      
-      this.logger.log(`🫁 呼吸动画已${bool ? '启用' : '禁用'}`)
+
+      this.logger.log(
+        `🫁 Breathing animation ${bool ? "enabled" : "disabled"}`,
+      );
     } catch (error) {
-      this.logger.error('❌ 设置呼吸参数失败:', error)
+      this.logger.error("❌ Failed to set breathing parameters:", error);
     }
-  }, '设置呼吸')
+  }, "set breathing");
 
   /**
-   * 设置眨眼动画 - 优化版本
-   * @param {boolean} bool - 是否启用眨眼
+   * Set eye blinking animation - optimized version
+   * @param {boolean} bool - Whether to enable eye blinking
    */
-  setEyeBlinking = withModelCheck(function(bool) {
-    this.model.eyeBlinking = bool
+  setEyeBlinking = withModelCheck(function (bool) {
+    this.model.eyeBlinking = bool;
     if (!this.model.internalModel?.eyeBlink) {
-      this.logger.warn('⚠️ 眨眼功能不可用')
-      return
+      this.logger.warn("⚠️ Eye blinking feature not available");
+      return;
     }
 
     try {
-      // 如果parametersValues.eyeBlink没有初始化，尝试从内部模型获取
+      // If parametersValues.eyeBlink is not initialized, try to get from internal model
       if (!this.parametersValues.eyeBlink) {
-        const eyeBlinkParams = this.model.internalModel.eyeBlink.getParameterIds()
-        this.parametersValues.eyeBlink = eyeBlinkParams ? [...eyeBlinkParams] : []
+        const eyeBlinkParams =
+          this.model.internalModel.eyeBlink.getParameterIds();
+        this.parametersValues.eyeBlink = eyeBlinkParams
+          ? [...eyeBlinkParams]
+          : [];
       }
 
-      // 使用setParameterIds方法设置眨眼参数
-      if (bool && this.parametersValues.eyeBlink && this.parametersValues.eyeBlink.length > 0) {
-        this.model.internalModel.eyeBlink.setParameterIds([...this.parametersValues.eyeBlink])
+      // Use setParameterIds method to set eye blinking parameters
+      if (
+        bool &&
+        this.parametersValues.eyeBlink &&
+        this.parametersValues.eyeBlink.length > 0
+      ) {
+        this.model.internalModel.eyeBlink.setParameterIds([
+          ...this.parametersValues.eyeBlink,
+        ]);
       } else {
-        this.model.internalModel.eyeBlink.setParameterIds([])
+        this.model.internalModel.eyeBlink.setParameterIds([]);
       }
-      
-      this.logger.log(`👁️ 眨眼动画已${bool ? '启用' : '禁用'}`)
+
+      this.logger.log(
+        `👁️ Eye blinking animation ${bool ? "enabled" : "disabled"}`,
+      );
     } catch (error) {
-      this.logger.error('❌ 设置眨眼参数失败:', error)
+      this.logger.error("❌ Failed to set eye blinking parameters:", error);
     }
-  }, '设置眨眼')
+  }, "set eye blinking");
 
   /**
-   * 设置交互性 - 优化版本
-   * @param {boolean} bool - 是否可交互
+   * Set interactivity - optimized version
+   * @param {boolean} bool - Whether interactive
    */
-  setInteractive = withModelCheck(function(bool) {
-    this.model.interactive = bool
-    this.logger.log(`🖱️ 交互性已${bool ? '启用' : '禁用'}`)
-  }, '设置交互性')
+  setInteractive = withModelCheck(function (bool) {
+    this.model.interactive = bool;
+    this.logger.log(`🖱️ Interactivity ${bool ? "enabled" : "disabled"}`);
+  }, "set interactivity");
 
   /**
-   * 设置视线跟随 - 优化版本
-   * @param {boolean} bool - 是否跟随鼠标
+   * Set gaze tracking - optimized version
+   * @param {boolean} bool - Whether to follow mouse
    */
-  setLookatMouse = withModelCheck(function(bool) {
-    this.model.focusing = bool
+  setLookatMouse = withModelCheck(function (bool) {
+    this.model.focusing = bool;
 
     if (!bool) {
-      // 重置视线到中心位置
-      this.model.focus(this.model.x, this.model.y)
+      // Reset gaze to center position
+      this.model.focus(this.model.x, this.model.y);
     }
-  }, '设置视线跟随')
+  }, "set gaze tracking");
 
   /**
-   * 播放表情 - 优化版本
-   * @param {number} index - 表情索引
-   * @returns {boolean} 是否成功播放
+   * Play expression - optimized version
+   * @param {number} index - Expression index
+   * @returns {boolean} Whether playback was successful
    */
-  setExpression = withModelCheck(function(index) {
+  setExpression = withModelCheck(function (index) {
     try {
       if (!this.model.internalModel) {
-        this.logger.warn('⚠️ 内部模型未准备好')
-        return false
+        this.logger.warn("⚠️ Internal model not ready");
+        return false;
       }
 
-      const expressions = this.model.internalModel.settings.getExpressionDefinitions()
+      const expressions =
+        this.model.internalModel.settings.expressions || this.cachedExpressions;
       if (!expressions || !expressions[index]) {
-        this.logger.warn(`⚠️ 表情索引无效: ${index}`)
-        return false
+        this.logger.warn(`⚠️ Invalid expression index: ${index}`);
+        return false;
       }
 
-      this.model.internalModel.expression(expressions[index].name)
-      this.logger.log(`😊 表情已播放: ${expressions[index].name}`)
-      return true
+      this.model.expression(index);
+      this.logger.log(`😊 Expression played: ${expressions[index].Name}`);
+      return true;
     } catch (error) {
-      this.logger.error('❌ 播放表情失败:', error)
-      return false
+      this.logger.error("❌ Failed to play expression:", error);
+      return false;
     }
-  }, '播放表情')
+  }, "play expression");
 
   /**
-   * 播放动作 - 优化版本
-   * @param {string} group - 动作组名
-   * @param {number} index - 动作索引
-   * @returns {boolean} 是否成功播放
+   * Play motion - optimized version
+   * @param {string} group - Motion group name
+   * @param {number} index - Motion index
+   * @returns {boolean} Whether playback was successful
    */
-  playMotion = withErrorHandling(withModelCheck(async function(group, index) {
-    if (!this.model.internalModel) {
-      this.logger.warn('⚠️ 内部模型未准备好')
-      return false
-    }
+  playMotion = withErrorHandling(
+    withModelCheck(async function (group, index) {
+      if (!this.model.internalModel) {
+        this.logger.warn("⚠️ Internal model not ready");
+        return false;
+      }
 
-    const motionManager = this.model.internalModel.motionManager
-    if (!motionManager) {
-      this.logger.warn('⚠️ 动作管理器未准备好')
-      return false
-    }
+      const motionManager = this.model.internalModel.motionManager;
+      if (!motionManager) {
+        this.logger.warn("⚠️ Motion manager not ready");
+        return false;
+      }
 
-    // 如果播放的不是待机动作，则在播放结束后自动切换到随机待机动作
-    if (group !== 'idle') {
-      motionManager.once('motionFinish', () => {
-        this.playRandomMotion('idle');
-      });
-    }
+      // If the motion is not an idle motion, automatically switch to a random idle motion after playback ends
+      // if (group !== "idle") {
+      //   motionManager.once("motionFinish", () => {
+      //     this.playRandomMotion("idle");
+      //   });
+      // }
 
-    const success = await motionManager.startMotion(group, index)
+      const success = await motionManager.startMotion(group, index);
 
-    if (success) {
-      this.logger.log(`🎬 动作已播放: ${group}_${index}`)
-    } else {
-      this.logger.warn(`⚠️ 动作播放失败: ${group}_${index}`)
-    }
-    return success
-  }, '播放动作'), '播放动作')
+      if (success) {
+        this.logger.log(`🎬 Motion played: ${group}_${index}`);
+      } else {
+        this.logger.warn(`⚠️ Motion playback failed: ${group}_${index}`);
+      }
+      return success;
+    }, "play motion"),
+    "play motion",
+  );
 
   /**
-   * 保存当前模型状态
-   * @returns {Object} 当前状态
+   * Save current model state
+   * @returns {Object} Current state
    */
   saveCurrentState() {
-    if (!this.model) return null
-    
+    if (!this.model) return null;
+
     const state = {
       scale: this.getScale(),
       angle: this.getAngle(),
       alpha: this.getAlpha(),
       position: {
         x: this.model.position.x,
-        y: this.model.position.y
-      }
-    }
+        y: this.model.position.y,
+      },
+    };
 
-    // 保存参数状态
-    state.parameters = {}
+    // Save parameter state
+    state.parameters = {};
     if (this.model?.internalModel?.coreModel) {
-      const coreModel = this.model.internalModel.coreModel
+      const coreModel = this.model.internalModel.coreModel;
       const live2dCoreModel = coreModel.getModel();
       const parameterCount = live2dCoreModel.parameters.count;
       const parameterIds = live2dCoreModel.parameters.ids;
 
       for (let i = 0; i < parameterCount; i++) {
         const paramId = parameterIds[i];
-        state.parameters[paramId] = coreModel.getParameterValueByIndex(i)
+        state.parameters[paramId] = coreModel.getParameterValueByIndex(i);
       }
     }
 
-    // 保存部件不透明度状态
-    state.partOpacity = {}
+    // Save part opacity state
+    state.partOpacity = {};
     if (this.model?.internalModel?.coreModel) {
-      const coreModel = this.model.internalModel.coreModel
-      const partCount = coreModel.getPartCount()
+      const coreModel = this.model.internalModel.coreModel;
+      const partCount = coreModel.getPartCount();
       for (let i = 0; i < partCount; i++) {
-        const partId = coreModel.getPartId(i)
-        state.partOpacity[partId] = coreModel.getPartOpacityByIndex(i)
+        const partId = coreModel.getPartId(i);
+        state.partOpacity[partId] = coreModel.getPartOpacityByIndex(i);
       }
     }
 
-    return state
+    return state;
   }
 
   /**
-   * 还原模型状态
-   * @param {Object} state - 要还原的状态
+   * Restore model state
+   * @param {Object} state - State to restore
    */
   restoreState(state) {
-    if (!state || !this.model) return
+    if (!state || !this.model) return;
 
     try {
-      // 还原基础属性
+      // Restore basic properties
       if (state.scale) {
-        this.setScale(state.scale.x)
+        this.setScale(state.scale.x);
       }
       if (state.angle !== undefined) {
-        this.setAngle(state.angle)
+        this.setAngle(state.angle);
       }
       if (state.alpha !== undefined) {
-        this.setAlpha(state.alpha)
+        this.setAlpha(state.alpha);
       }
       if (state.position) {
-        this.model.position.set(state.position.x, state.position.y)
+        this.model.position.set(state.position.x, state.position.y);
       }
 
-      // 还原参数状态
+      // Restore parameter state
       if (state.parameters && this.model?.internalModel?.coreModel) {
         Object.entries(state.parameters).forEach(([paramId, value]) => {
-          this.model.internalModel.coreModel.setParameterValueById(paramId, value)
-        })
+          this.model.internalModel.coreModel.setParameterValueById(
+            paramId,
+            value,
+          );
+        });
       }
 
-      // 还原部件不透明度状态
+      // Restore part opacity state
       if (state.partOpacity && this.model?.internalModel?.coreModel) {
         Object.entries(state.partOpacity).forEach(([partId, value]) => {
-          this.model.internalModel.coreModel.setPartOpacityById(partId, value)
-        })
+          this.model.internalModel.coreModel.setPartOpacityById(partId, value);
+        });
       }
 
-      this.logger.log('🔄 模型状态已还原')
+      this.logger.log("🔄 Model state restored");
     } catch (error) {
-      this.logger.error('❌ 还原状态失败:', error)
+      this.logger.error("❌ Failed to restore state:", error);
     }
   }
 
   /**
-   * 安排状态还原
-   * @param {Object} initialState - 初始状态
-   * @param {string} group - 动作组
-   * @param {number} index - 动作索引
+   * Schedule state restoration
+   * @param {Object} initialState - Initial state
+   * @param {string} group - Motion group
+   * @param {number} index - Motion index
    */
   scheduleStateRestore(initialState, group, index) {
-    if (!initialState) return
+    if (!initialState) return;
 
-    // 获取动作持续时间（从动作数据中获取）
-    const motionGroup = this.cachedMotions[group]
-    const motion = motionGroup ? motionGroup[index] : null
-    const duration = motion?.Duration || 3000 // 默认3秒
+    // Get motion duration (from motion data)
+    const motionGroup = this.cachedMotions[group];
+    const motion = motionGroup ? motionGroup[index] : null;
+    const duration = motion?.Duration || 3000; // Default 3 seconds
 
-    // 设置定时器，在动作结束后还原状态
+    // Set timer to restore state after motion ends
     setTimeout(() => {
-      // 检查是否还在播放同一个动作
-      if (this.model && this.model.internalModel && this.model.internalModel.motionManager) {
-        const motionManager = this.model.internalModel.motionManager
-        // 使用MotionManager的公共API检查当前动作状态
+      // Check if still playing the same motion
+      if (
+        this.model &&
+        this.model.internalModel &&
+        this.model.internalModel.motionManager
+      ) {
+        const motionManager = this.model.internalModel.motionManager;
+        // Use MotionManager's public API to check current motion state
         if (motionManager.state && motionManager.state.isActive(group, index)) {
-          // 动作还在播放，继续等待
-          this.scheduleStateRestore(initialState, group, index)
+          // Motion still playing, continue waiting
+          this.scheduleStateRestore(initialState, group, index);
         } else {
-          // 动作已结束，还原状态
-          this.restoreState(initialState)
+          // Motion ended, restore state
+          this.restoreState(initialState);
         }
       } else {
-        // 无法检查状态，直接还原
-        this.restoreState(initialState)
+        // Cannot check state, restore directly
+        this.restoreState(initialState);
       }
-    }, duration + 500) // 额外500ms缓冲时间
+    }, duration + 500); // Extra 500ms buffer time
   }
 
   /**
-   * 播放随机动作
-   * @param {string} group - 动作组（可选）
+   * Play random motion
+   * @param {string} group - Motion group (optional)
    */
-  playRandomMotion = withModelCheck(async function(group = null) {
-    const availableGroups = Object.keys(this.cachedMotions)
+  playRandomMotion = withModelCheck(async function (group = null) {
+    const availableGroups = Object.keys(this.cachedMotions);
     if (availableGroups.length === 0) {
-      this.logger.warn('⚠️ 没有可用的动作组')
-      return false
+      this.logger.warn("⚠️ No available motion groups");
+      return false;
     }
 
-    // 选择动作组
-    const targetGroup = group || availableGroups[Math.floor(Math.random() * availableGroups.length)]
-    const motionGroup = this.cachedMotions[targetGroup]
+    // Select motion group
+    const targetGroup =
+      group ||
+      availableGroups[Math.floor(Math.random() * availableGroups.length)];
+    const motionGroup = this.cachedMotions[targetGroup];
 
     if (!motionGroup || motionGroup.length === 0) {
-      this.logger.warn('⚠️ 动作组为空:', targetGroup)
-      return false
+      this.logger.warn("⚠️ Motion group is empty:", targetGroup);
+      return false;
     }
 
-    // 选择随机动作索引
-    const randomIndex = Math.floor(Math.random() * motionGroup.length)
+    // Select random motion index
+    const randomIndex = Math.floor(Math.random() * motionGroup.length);
 
-    return this.playMotion(targetGroup, randomIndex)
-  }, '播放随机动作')
+    return this.playMotion(targetGroup, randomIndex);
+  }, "play random motion");
 
   /**
-   * 停止所有动作
+   * Stop all motions
    */
   stopAllMotions() {
-    if (!this.model || !this.model.internalModel || !this.model.internalModel.motionManager) {
-      return
+    if (
+      !this.model ||
+      !this.model.internalModel ||
+      !this.model.internalModel.motionManager
+    ) {
+      return;
     }
-    this.model.internalModel.motionManager.stopAllMotions()
+    this.model.internalModel.motionManager.stopAllMotions();
   }
 
   /**
-   * 播放随机表情
+   * Play random expression
    */
   playRandomExpression() {
     if (this.cachedExpressions.length === 0) {
-      this.logger.warn('⚠️ 没有可用的表情')
-      return false
+      this.logger.warn("⚠️ No available expressions");
+      return false;
     }
 
-    const randomIndex = Math.floor(Math.random() * this.cachedExpressions.length)
-    return this.setExpression(randomIndex)
+    const randomIndex = Math.floor(
+      Math.random() * this.cachedExpressions.length,
+    );
+    return this.setExpression(randomIndex);
   }
 
   /**
-   * 获取当前表情的索引
-   * @returns {number|null} 当前表情的索引，如果没有则返回 null
+   * Get current expression index
+   * @returns {number|null} Current expression index, or null if none
    */
   getCurrentExpressionIndex() {
-    if (!this.model || !this.model.internalModel || !this.model.internalModel.expressionManager) {
-      this.logger.warn('⚠️ 无法获取当前表情：模型或表情管理器未准备好')
-      return null
+    if (
+      !this.model ||
+      !this.model.internalModel ||
+      !this.model.internalModel.expressionManager
+    ) {
+      this.logger.debug(
+        "ℹ️ Cannot get current expression: model or expression manager not ready",
+      );
+      return null;
     }
     try {
       const expressionManager = this.model.internalModel.expressionManager;
-      const currentExpressionName = expressionManager.getCurrentExpression(); // 假设此方法返回当前表情名称
-      
+      const currentExpressionName = expressionManager.getCurrentExpression(); // Assumes this method returns current expression name
+
       if (currentExpressionName) {
-        const index = this.cachedExpressions.findIndex(expr => expr.Name === currentExpressionName);
+        const index = this.cachedExpressions.findIndex(
+          (expr) => expr.Name === currentExpressionName,
+        );
         if (index !== -1) {
           return index;
         }
       }
       return null;
     } catch (error) {
-      this.logger.error('❌ 获取当前表情索引失败:', error);
+      this.logger.error("❌ Failed to get current expression index:", error);
       return null;
     }
   }
 
   /**
-   * 获取动作数据
+   * Get the base URL of the model (directory containing the model settings file)
+   * @returns {string|null} Base URL
+   */
+  getModelBaseUrl() {
+    const url = this.cubismModelSettings?.url || this.rawModelSettings?.url;
+    if (!url) return null;
+    // Remove the filename to get the directory path
+    const lastSlash = url.lastIndexOf("/");
+    return lastSlash >= 0 ? url.substring(0, lastSlash + 1) : "./";
+  }
+
+  /**
+   * Get the audio URL for a specific motion
+   * @param {string} group - Motion group name
+   * @param {number} index - Motion index within the group
+   * @returns {string|null} Resolved audio URL, or null if no audio
+   */
+  getMotionAudioUrl(group, index) {
+    const motionGroup = this.cachedMotions[group];
+    if (!motionGroup || !motionGroup[index]) return null;
+
+    const motion = motionGroup[index];
+    // Live2D models use "Sound" or "Audio" field for audio file path
+    const audioPath = motion.Sound || motion.Audio;
+    if (!audioPath) return null;
+
+    const baseUrl = this.getModelBaseUrl();
+    if (!baseUrl) return null;
+
+    // Resolve relative path against the model base URL
+    return new URL(audioPath, baseUrl).href;
+  }
+
+  /**
+   * Get motion data
    */
   getMotions() {
-    return this.cachedMotions
+    return this.cachedMotions;
   }
 
   /**
-   * 获取表情数据
+   * Get expression data
    */
   getExpressions() {
-    return this.cachedExpressions
+    return this.cachedExpressions;
   }
 
   /**
-   * 获取所有参数数据
+   * Get all parameter data
    */
   getAllParameters() {
-    const params = this.parametersValues.parameter || []
-    this.logger.log('⚙️ [HeroModel] getAllParameters: 返回参数数量:', params.length)
-    return params
+    const params = this.parametersValues.parameter || [];
+    this.logger.log(
+      "⚙️ [HeroModel] getAllParameters: returning parameter count:",
+      params.length,
+    );
+    return params;
   }
 
   /**
-   * 获取所有部件不透明度数据
+   * Get all part opacity data
    */
   getAllPartOpacity() {
-    const parts = this.parametersValues.partOpacity || []
-    this.logger.log('⚙️ [HeroModel] getAllPartOpacity: 返回部件数量:', parts.length)
-    return parts
+    const parts = this.parametersValues.partOpacity || [];
+    this.logger.log(
+      "⚙️ [HeroModel] getAllPartOpacity: returning part count:",
+      parts.length,
+    );
+    return parts;
   }
 
   /**
-   * 设置参数值 - 使用统一工具
-   * @param {string} paramId - 参数ID
-   * @param {number} value - 参数值
-   * @param {number} weight - 权重
+   * Set parameter value - using unified utility
+   * @param {string} paramId - Parameter ID
+   * @param {number} value - Parameter value
+   * @param {number} weight - Weight
    */
   setParameters(paramId, value, weight = 1) {
-    return ParameterUtils.setParameterValue(this.model, paramId, value, this.parametersValues, weight, this.logger)
+    return ParameterUtils.setParameterValue(
+      this.model,
+      paramId,
+      value,
+      this.parametersValues,
+      weight,
+      this.logger,
+    );
   }
 
   /**
-   * 设置部件不透明度 - 使用统一工具
-   * @param {string} partId - 部件ID
-   * @param {number} value - 不透明度值
+   * Set part opacity - using unified utility
+   * @param {string} partId - Part ID
+   * @param {number} value - Opacity value
    */
   setPartOpacity(partId, value) {
-    return ParameterUtils.setPartOpacity(this.model, partId, value, this.parametersValues, this.logger)
+    return ParameterUtils.setPartOpacity(
+      this.model,
+      partId,
+      value,
+      this.parametersValues,
+      this.logger,
+    );
   }
 
   /**
-   * 设置前景可见性 - 优化版本
-   * @param {boolean} visible - 是否可见
+   * Set foreground visibility - optimized version
+   * @param {boolean} visible - Whether visible
    */
-  setForegroundVisible = withModelCheck(function(visible) {
+  setForegroundVisible = withModelCheck(function (visible) {
     if (this.foreground) {
-      this.foreground.visible = visible
-      this.logger.log(`🎨 前景可见性已设置: ${visible}`)
+      this.foreground.visible = visible;
+      this.logger.log(`🎨 Foreground visibility set: ${visible}`);
     }
-  }, '设置前景可见性')
+  }, "set foreground visibility");
 
   /**
-   * 设置模型属性
-   * @param {object} modelData - 包含模型数据的object
+   * Set model properties
+   * @param {object} modelData - Object containing model data
    */
   setModelProperties(modelData) {
-    this.modelName = modelData.name || ''
-    this.costume = modelData.costume || ''
-    this.setAnchor(modelData.anchorX, modelData.anchorY)
-    this.setScale(modelData.scaleX || 1)
-    this.setVisible(modelData.visible || true)
-    this.setAngle(modelData.angle || 0)
-    this.setAlpha(modelData.alpha || 1)
+    this.modelName = modelData.name || "";
+    this.costume = modelData.costume || "";
+    this.setAnchor(modelData.anchorX, modelData.anchorY);
+    this.setScale(modelData.scaleX || 1);
+    this.setVisible(modelData.visible || true);
+    this.setAngle(modelData.angle || 0);
+    this.setAlpha(modelData.alpha || 1);
   }
 
   /**
-   * 销毁模型及其所有资源
+   * Destroy model and all its resources
    */
   destroy() {
     if (this._destroyed) {
-      this.logger.warn('destroy() called more than once for model:', this.id)
-      return
+      this.logger.warn("destroy() called more than once for model:", this.id);
+      return;
     }
     this._destroyed = true;
-    this.logger.log('🗑️ 开始销毁模型:', this.id)
+    this.logger.log("🗑️ Starting model destruction:", this.id);
 
     try {
-      // 1. 停止所有动作和表情
+      // 1. Stop all motions and expressions
       try {
-        this.stopAllMotions()
+        this.stopAllMotions();
       } catch (e) {
-        this.logger.warn('⚠️ 停止动作失败:', e)
+        this.logger.warn("⚠️ Failed to stop motions:", e);
       }
 
-      // 2. 移除所有事件监听器
-      if (this.model && typeof this.model.removeAllListeners === 'function') {
+      // 2. Remove all event listeners
+      if (this.model && typeof this.model.removeAllListeners === "function") {
         try {
-          this.model.removeAllListeners()
+          this.model.removeAllListeners();
         } catch (e) {
-          this.logger.warn('⚠️ 移除事件监听器失败:', e)
+          this.logger.warn("⚠️ Failed to remove event listeners:", e);
         }
       }
 
-      // 3. 从父容器中移除
+      // 3. Remove from parent container
       if (this.model && this.model.parent) {
         try {
-          this.model.parent.removeChild(this.model)
+          this.model.parent.removeChild(this.model);
         } catch (e) {
-          this.logger.warn('⚠️ 从父容器移除失败:', e)
+          this.logger.warn("⚠️ Failed to remove from parent container:", e);
         }
       }
 
-      // 4. 销毁前景对象
+      // 4. Destroy foreground object
       if (this.foreground) {
         try {
           if (this.foreground.parent) {
-            this.foreground.parent.removeChild(this.foreground)
+            this.foreground.parent.removeChild(this.foreground);
           }
-          if (typeof this.foreground.destroy === 'function') {
-            this.foreground.destroy({ children: true, texture: true, baseTexture: true })
+          if (typeof this.foreground.destroy === "function") {
+            this.foreground.destroy({
+              children: true,
+              texture: true,
+              baseTexture: true,
+            });
           }
         } catch (e) {
-          this.logger.warn('⚠️ 销毁前景对象失败:', e)
+          this.logger.warn("⚠️ Failed to destroy foreground object:", e);
         }
-        this.foreground = null
+        this.foreground = null;
       }
 
-      // 5. 销毁主模型
+      // 5. Destroy main model
       if (this.model) {
         try {
-          if (typeof this.model.destroy === 'function') {
+          if (typeof this.model.destroy === "function") {
             if (this.model.children) {
-              this.model.children.forEach(child => {
+              this.model.children.forEach((child) => {
                 try {
-                  if (child && typeof child.destroy === 'function') {
-                    child.destroy({ children: true, texture: true, baseTexture: true })
+                  if (child && typeof child.destroy === "function") {
+                    child.destroy({
+                      children: true,
+                      texture: true,
+                      baseTexture: true,
+                    });
                   }
                 } catch (e) {
-                  this.logger.warn('⚠️ 销毁子对象失败:', e)
+                  this.logger.warn("⚠️ Failed to destroy child object:", e);
                 }
-              })
+              });
             }
-            this.model.destroy({ children: true, texture: true, baseTexture: true })
+            this.model.destroy({
+              children: true,
+              texture: true,
+              baseTexture: true,
+            });
           } else {
-            this.logger.warn('⚠️ 模型对象没有 destroy 方法')
+            this.logger.warn("⚠️ Model object has no destroy method");
           }
         } catch (e) {
-          this.logger.warn('⚠️ 销毁主模型失败:', e)
+          this.logger.warn("⚠️ Failed to destroy main model:", e);
         }
-        // 现在再置空内部模型和相关属性
+        // Now null out internal model and related properties
         if (this.model.internalModel) {
-          this.model.internalModel = null
+          this.model.internalModel = null;
         }
-        this.model = null
+        this.model = null;
       }
 
-      // 6. 清理其他资源
-      this.cubismModelSettings = null
-      this.rawModelSettings = null
-      this.parametersValues = {}
-      this.cachedExpressions = []
-      this.cachedMotions = {}
+      // 6. Clean up other resources
+      this.cubismModelSettings = null;
+      this.rawModelSettings = null;
+      this.parametersValues = {};
+      this.cachedExpressions = [];
+      this.cachedMotions = {};
 
-      this.logger.log('✅ 模型销毁完成:', this.id)
+      this.logger.log("✅ Model destruction complete:", this.id);
     } catch (error) {
-      this.logger.error('❌ 销毁模型失败:', error)
-      throw error
+      this.logger.error("❌ Failed to destroy model:", error);
+      throw error;
     }
   }
 
   /**
-   * 自动适应画布大小
-   * @param {number} canvasWidth - 画布宽度
-   * @param {number} canvasHeight - 画布高度
-   * @param {number} targetHeightRatio - 目标高度比例（默认0.5，即模型高度占画布高度的50%）
+   * Auto-fit to canvas size
+   * @param {number} canvasWidth - Canvas width
+   * @param {number} canvasHeight - Canvas height
+   * @param {number} targetHeightRatio - Target height ratio (default 0.5, i.e. model height is 50% of canvas height)
    */
-  autoFitToCanvas = withModelCheck(function(canvasWidth, canvasHeight, targetHeightRatio = 0.5) {
+  autoFitToCanvas = withModelCheck(function (
+    canvasWidth,
+    canvasHeight,
+    targetHeightRatio = 0.5,
+  ) {
     try {
-      // 尝试从模型设置中获取尺寸信息
-      let modelWidth, modelHeight
-      
-      if (this.rawModelSettings && this.rawModelSettings.CanvasSize) {
-        // 从模型设置中获取画布尺寸
-        modelWidth = this.rawModelSettings.CanvasSize.Width
-        modelHeight = this.rawModelSettings.CanvasSize.Height
-        this.logger.log('📐 从模型设置获取尺寸:', { modelWidth, modelHeight })
+      // Get the PIXI model's rendered pixel dimensions at scale 1.0.
+      // coreModel.getCanvasWidth/Height() returns Cubism abstract units which
+      // can be very small (e.g. 28x16) and are NOT pixel dimensions.
+      // The PIXI Live2D model's width/height properties give the actual
+      // rendered size in pixels, but they are affected by the current scale,
+      // so we need to normalize them back to scale 1.0.
+      let modelWidth, modelHeight;
+
+      const currentScaleX = this.model.scale.x || 1;
+      const currentScaleY = this.model.scale.y || 1;
+
+      // model.width and model.height are the pixel dimensions at current scale
+      const pixelWidth = this.model.width;
+      const pixelHeight = this.model.height;
+
+      if (pixelWidth > 0 && pixelHeight > 0) {
+        // Normalize to scale 1.0 pixel dimensions
+        modelWidth = pixelWidth / currentScaleX;
+        modelHeight = pixelHeight / currentScaleY;
+        this.logger.log("📐 Got pixel size from PIXI model (at scale 1.0):", {
+          modelWidth: modelWidth.toFixed(1),
+          modelHeight: modelHeight.toFixed(1),
+          currentScale: `${currentScaleX}x${currentScaleY}`,
+        });
       } else {
-        // 从核心模型获取尺寸
-        const coreModel = this.model.internalModel.coreModel
-        modelWidth = coreModel.getCanvasWidth()
-        modelHeight = coreModel.getCanvasHeight()
-        this.logger.log('📐 从核心模型获取尺寸:', { modelWidth, modelHeight })
+        // Fallback: try rawModelSettings CanvasSize
+        if (this.rawModelSettings && this.rawModelSettings.CanvasSize) {
+          modelWidth = this.rawModelSettings.CanvasSize.Width;
+          modelHeight = this.rawModelSettings.CanvasSize.Height;
+          this.logger.log("📐 Got size from model settings (fallback):", {
+            modelWidth,
+            modelHeight,
+          });
+        } else {
+          this.logger.warn(
+            "⚠️ Cannot get model pixel size, using default scale",
+          );
+          this.setScale(0.2);
+          this.model.position.set(canvasWidth / 2, canvasHeight / 2);
+          return false;
+        }
       }
 
-      if (!modelWidth || !modelHeight) {
-        this.logger.warn('⚠️ 无法获取模型原始尺寸，使用默认缩放')
-        this.setScale(0.2)
-        this.model.position.set(canvasWidth / 2, canvasHeight / 2)
-        return false
+      if (!modelWidth || !modelHeight || modelWidth < 1 || modelHeight < 1) {
+        this.logger.warn("⚠️ Abnormal model size, using default scale:", {
+          modelWidth,
+          modelHeight,
+        });
+        this.setScale(0.2);
+        this.model.position.set(canvasWidth / 2, canvasHeight / 2);
+        return false;
       }
 
-      // 如果尺寸看起来不合理（太小），使用默认缩放并居中
-      if (modelWidth < 100 || modelHeight < 100) {
-        this.logger.warn('⚠️ 模型尺寸异常，使用默认缩放:', { modelWidth, modelHeight })
-        this.setScale(0.2)
-        this.model.position.set(canvasWidth / 2, canvasHeight / 2)
-        return false
-      }
+      // Calculate model aspect ratio
+      const modelAspectRatio = modelWidth / modelHeight;
+      const canvasAspectRatio = canvasWidth / canvasHeight;
 
-      // 计算模型的宽高比
-      const modelAspectRatio = modelWidth / modelHeight
-      const canvasAspectRatio = canvasWidth / canvasHeight
+      this.logger.log("📐 Size analysis:", {
+        modelSize: `${modelWidth}x${modelHeight}`,
+        modelAspectRatio: modelAspectRatio.toFixed(3),
+        canvasSize: `${canvasWidth}x${canvasHeight}`,
+        canvasAspectRatio: canvasAspectRatio.toFixed(3),
+      });
 
-      this.logger.log('📐 尺寸分析:', {
-        模型尺寸: `${modelWidth}x${modelHeight}`,
-        模型宽高比: modelAspectRatio.toFixed(3),
-        画布尺寸: `${canvasWidth}x${canvasHeight}`,
-        画布宽高比: canvasAspectRatio.toFixed(3)
-      })
+      let finalScale = 1.0;
 
-      let finalScale = 1.0
-
-      // 根据模型和画布的宽高比决定适配策略
+      // Decide fitting strategy based on model and canvas aspect ratios
       if (modelAspectRatio > canvasAspectRatio) {
-        // 横屏模型：优先适配宽度，使用更保守的缩放
-        this.logger.log('📐 检测到横屏模型，优先适配宽度')
-        const maxWidth = canvasWidth * 0.8 // 留20%边距
-        finalScale = maxWidth / modelWidth
-        
-        // 检查高度是否超出
-        const scaledHeight = modelHeight * finalScale
+        // Landscape model: prioritize width fitting, use more conservative scale
+        this.logger.log(
+          "📐 Landscape model detected, prioritizing width fitting",
+        );
+        const maxWidth = canvasWidth * 0.8; // Leave 20% margin
+        finalScale = maxWidth / modelWidth;
+
+        // Check if height exceeds limit
+        const scaledHeight = modelHeight * finalScale;
         if (scaledHeight > canvasHeight * 0.9) {
-          const maxHeight = canvasHeight * 0.9
-          const heightScale = maxHeight / modelHeight
-          finalScale = Math.min(finalScale, heightScale)
-          this.logger.log('📐 高度超出限制，调整缩放比例')
+          const maxHeight = canvasHeight * 0.9;
+          const heightScale = maxHeight / modelHeight;
+          finalScale = Math.min(finalScale, heightScale);
+          this.logger.log("📐 Height exceeds limit, adjusting scale ratio");
         }
       } else {
-        // 竖屏模型：优先适配高度，使用更保守的缩放
-        this.logger.log('📐 检测到竖屏模型，优先适配高度')
-        const targetHeight = canvasHeight * targetHeightRatio
-        finalScale = targetHeight / modelHeight
-        
-        // 检查宽度是否超出
-        const scaledWidth = modelWidth * finalScale
+        // Portrait model: prioritize height fitting, use more conservative scale
+        this.logger.log(
+          "📐 Portrait model detected, prioritizing height fitting",
+        );
+        const targetHeight = canvasHeight * targetHeightRatio;
+        finalScale = targetHeight / modelHeight;
+
+        // Check if width exceeds limit
+        const scaledWidth = modelWidth * finalScale;
         if (scaledWidth > canvasWidth * 0.9) {
-          const maxWidth = canvasWidth * 0.9
-          const widthScale = maxWidth / modelWidth
-          finalScale = Math.min(finalScale, widthScale)
-          this.logger.log('📐 宽度超出限制，调整缩放比例')
+          const maxWidth = canvasWidth * 0.9;
+          const widthScale = maxWidth / modelWidth;
+          finalScale = Math.min(finalScale, widthScale);
+          this.logger.log("📐 Width exceeds limit, adjusting scale ratio");
         }
       }
 
-      // 确保缩放比例在合理范围内
-      finalScale = Math.max(0.1, Math.min(2.0, finalScale))
+      // Ensure scale ratio is within reasonable range
+      finalScale = Math.max(0.1, Math.min(2.0, finalScale));
 
-      // 应用缩放
-      this.setScale(finalScale)
+      // Apply scale
+      this.setScale(finalScale);
 
-      // 计算缩放后的尺寸
-      const scaledModelWidth = modelWidth * finalScale
-      const scaledModelHeight = modelHeight * finalScale
+      // Calculate scaled dimensions
+      const scaledModelWidth = modelWidth * finalScale;
+      const scaledModelHeight = modelHeight * finalScale;
 
-      // 居中定位
-      const centerX = canvasWidth / 2
-      const centerY = canvasHeight / 2
+      // Center positioning
+      const centerX = canvasWidth / 2;
+      const centerY = canvasHeight / 2;
 
-      // 设置位置
-      this.model.position.set(centerX, centerY)
+      // Set position
+      this.model.position.set(centerX, centerY);
 
-      this.logger.log('📐 模型已适应画布大小:', {
-        画布尺寸: `${canvasWidth}x${canvasHeight}`,
-        模型原始尺寸: `${modelWidth}x${modelHeight}`,
-        缩放比例: finalScale.toFixed(3),
-        最终尺寸: `${scaledModelWidth.toFixed(0)}x${scaledModelHeight.toFixed(0)}`,
-        位置: `(${centerX.toFixed(0)}, ${centerY.toFixed(0)})`,
-        适配策略: modelAspectRatio > canvasAspectRatio ? '横屏适配' : '竖屏适配'
-      })
+      this.logger.log("📐 Model fitted to canvas:", {
+        canvasSize: `${canvasWidth}x${canvasHeight}`,
+        modelOriginalSize: `${modelWidth}x${modelHeight}`,
+        scaleRatio: finalScale.toFixed(3),
+        finalSize: `${scaledModelWidth.toFixed(0)}x${scaledModelHeight.toFixed(0)}`,
+        position: `(${centerX.toFixed(0)}, ${centerY.toFixed(0)})`,
+        fittingStrategy:
+          modelAspectRatio > canvasAspectRatio
+            ? "landscape fit"
+            : "portrait fit",
+      });
 
-      return true
+      return true;
     } catch (error) {
-      this.logger.error('❌ 适应画布大小失败:', error)
-      // 降级到默认缩放并居中
-      this.setScale(0.2)
-      this.model.position.set(canvasWidth / 2, canvasHeight / 2)
-      return false
+      this.logger.error("❌ Failed to fit to canvas:", error);
+      // Fall back to default scale and center
+      this.setScale(0.2);
+      this.model.position.set(canvasWidth / 2, canvasHeight / 2);
+      return false;
     }
-  }, '适应画布大小')
+  }, "fit to canvas");
 
   /**
-   * 获取模型原始尺寸
-   * @returns {Object|null} 包含width和height的对象
+   * Get model original size
+   * @returns {Object|null} Object containing width and height
    */
   getModelOriginalSize() {
-    if (!this.model || !this.model.internalModel) {
-      return null
+    if (!this.model) {
+      return null;
     }
 
     try {
-      const coreModel = this.model.internalModel.coreModel
-      return {
-        width: coreModel.getCanvasWidth(),
-        height: coreModel.getCanvasHeight()
+      // Return pixel dimensions at scale 1.0 (same approach as autoFitToCanvas).
+      // model.width/height are the rendered pixel size at the current scale,
+      // so we normalize back to scale 1.0.
+      const currentScaleX = this.model.scale.x || 1;
+      const currentScaleY = this.model.scale.y || 1;
+      const pixelWidth = this.model.width;
+      const pixelHeight = this.model.height;
+
+      if (pixelWidth > 0 && pixelHeight > 0) {
+        return {
+          width: pixelWidth / currentScaleX,
+          height: pixelHeight / currentScaleY,
+        };
       }
+
+      // Fallback to Cubism core model canvas size (abstract units)
+      if (this.model.internalModel) {
+        const coreModel = this.model.internalModel.coreModel;
+        return {
+          width: coreModel.getCanvasWidth(),
+          height: coreModel.getCanvasHeight(),
+        };
+      }
+
+      return null;
     } catch (error) {
-      this.logger.error('❌ 获取模型原始尺寸失败:', error)
-      return null
+      this.logger.error("❌ Failed to get model original size:", error);
+      return null;
     }
   }
 
   /**
-   * 重置模型到默认状态
-   * @param {number} canvasWidth - 画布宽度
-   * @param {number} canvasHeight - 画布高度
+   * Reset model to default state
+   * @param {number} canvasWidth - Canvas width
+   * @param {number} canvasHeight - Canvas height
    */
-  resetToDefault = withModelCheck(function(canvasWidth, canvasHeight) {
+  resetToDefault = withModelCheck(function (canvasWidth, canvasHeight) {
     try {
-      // 重置到默认缩放
-      this.setScale(0.2)
-      
-      // 重置到默认位置（画布中心）
+      // Reset to default scale
+      this.setScale(0.2);
+
+      // Reset to default position (canvas center)
       if (canvasWidth && canvasHeight) {
-        const centerX = canvasWidth / 2
-        const centerY = canvasHeight / 2
-        this.model.position.set(centerX, centerY)
+        const centerX = canvasWidth / 2;
+        const centerY = canvasHeight / 2;
+        this.model.position.set(centerX, centerY);
       } else {
-        this.model.position.set(0, 0)
+        this.model.position.set(0, 0);
       }
 
-      // 重置旋转和透明度
-      this.setAngle(0)
-      this.setAlpha(1)
+      // Reset rotation and alpha
+      this.setAngle(0);
+      this.setAlpha(1);
 
-      this.logger.log('🔄 模型已重置到默认状态')
-      return true
+      this.logger.log("🔄 Model reset to default state");
+      return true;
     } catch (error) {
-      this.logger.error('❌ 重置模型失败:', error)
-      return false
+      this.logger.error("❌ Failed to reset model:", error);
+      return false;
     }
-  }, '重置模型')
+  }, "reset model");
 
   /**
-   * 强制设置默认缩放
-   * @param {number} defaultScale - 默认缩放值（默认0.2）
+   * Force set default scale
+   * @param {number} defaultScale - Default scale value (default 0.2)
    */
-  forceDefaultScale = withModelCheck(function(defaultScale = 0.2) {
+  forceDefaultScale = withModelCheck(function (defaultScale = 0.2) {
     try {
-      this.setScale(defaultScale)
-      this.logger.log('📐 强制使用默认缩放:', defaultScale)
-      return true
+      this.setScale(defaultScale);
+      this.logger.log("📐 Forced default scale:", defaultScale);
+      return true;
     } catch (error) {
-      this.logger.error('❌ 设置默认缩放失败:', error)
-      return false
+      this.logger.error("❌ Failed to set default scale:", error);
+      return false;
     }
-  }, '设置默认缩放')
+  }, "set default scale");
 }

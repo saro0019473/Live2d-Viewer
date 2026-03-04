@@ -1,39 +1,39 @@
-import { defineStore } from 'pinia'
-import { ref, reactive, computed } from 'vue'
-import { globalStateSyncManager } from '../utils/live2d/state-sync-manager.js'
+import { defineStore } from "pinia";
+import { ref, reactive, computed } from "vue";
+import { globalStateSyncManager } from "../utils/live2d/state-sync-manager.js";
 
-// 日志工具函数
-const log = (message, level = 'info') => {
-  const prefix = '[Live2DStore]'
-  const timestamp = new Date().toISOString()
-  
+// Log utility function
+const log = (message, level = "info") => {
+  const prefix = "[Live2DStore]";
+  const timestamp = new Date().toISOString();
+
   switch (level) {
-    case 'error':
-      console.error(`${timestamp} ${prefix} ${message}`)
-      break
-    case 'warn':
-      console.warn(`${timestamp} ${prefix} ${message}`)
-      break
-    case 'debug':
+    case "error":
+      console.error(`${timestamp} ${prefix} ${message}`);
+      break;
+    case "warn":
+      console.warn(`${timestamp} ${prefix} ${message}`);
+      break;
+    case "debug":
       if (window.DEBUG_LIVE2D) {
-        console.log(`${timestamp} ${prefix} ${message}`)
+        console.log(`${timestamp} ${prefix} ${message}`);
       }
-      break
+      break;
     default:
-      console.log(`${timestamp} ${prefix} ${message}`)
+      console.log(`${timestamp} ${prefix} ${message}`);
   }
-}
+};
 
-export const useLive2DStore = defineStore('live2d', () => {
-  // 状态
-  const manager = ref(null)
-  const currentModel = ref(null)
-  const loadedModels = ref(new Map()) // 存储 HeroModel 实例
-  const modelDataMap = ref(new Map()) // 存储模型数据
-  const isLoading = ref(false)
-  const error = ref(null)
-  
-  // 设置
+export const useLive2DStore = defineStore("live2d", () => {
+  // State
+  const manager = ref(null);
+  const currentModel = ref(null);
+  const loadedModels = ref(new Map()); // Store HeroModel instances
+  const modelDataMap = ref(new Map()); // Store model data
+  const isLoading = ref(false);
+  const error = ref(null);
+
+  // Settings
   const settings = reactive({
     showText: true,
     enableAudio: true,
@@ -41,14 +41,14 @@ export const useLive2DStore = defineStore('live2d', () => {
     canvasHeight: 800,
     autoResize: true,
 
-    // AI控制设置
+    // AI control settings
     enableAIControl: true,
     autoExpression: true,
     autoMotion: true,
     autoLipSync: true,
     textDisplayDuration: 3000,
 
-    // 表情映射设置
+    // Expression mapping settings
     emotionMapping: {
       neutral: 0,
       happy: 1,
@@ -56,13 +56,13 @@ export const useLive2DStore = defineStore('live2d', () => {
       angry: 3,
       surprised: 4,
       fear: 5,
-      disgust: 6
-    }
-  })
+      disgust: 6,
+    },
+  });
 
-  // 模型状态 - 简化为基础数据存储，不包含同步逻辑
+  // Model state - simplified to basic data storage, no sync logic
   const modelState = reactive({
-    // 基础设置 - 仅存储数据，不处理同步
+    // Basic settings - data storage only, no sync handling
     settings: {
       scale: 0.2,
       position: { x: 0, y: 0 },
@@ -70,268 +70,275 @@ export const useLive2DStore = defineStore('live2d', () => {
       breathing: true,
       eyeBlinking: true,
       interactive: true,
-      // 扩展设置
+      // Extended settings
       wheelZoom: true,
       clickInteraction: true,
       zoomSettings: {
         speed: 0.01,
         min: 0.01,
-        max: 5.0
+        max: 5.0,
       },
       enableAudio: true,
-      showText: true
-    }
-  })
+      showText: true,
+    },
+  });
 
-  // 默认模型设置
+  // Default model settings
   const defaultModelSettings = {
     scale: 0.2,
     position: { x: 0, y: 0 },
     rotation: 0,
     breathing: true,
     eyeBlinking: true,
-    interactive: true
-  }
+    interactive: true,
+  };
 
   // Actions
   const setManager = (newManager) => {
-    manager.value = newManager
-    
-    // 集成状态同步管理器
+    manager.value = newManager;
+
+    // Integrate state sync manager
     if (newManager) {
       globalStateSyncManager.integrateWithStore({
         updateModelState: updateModelState,
-        getCurrentModelState: getCurrentModelState
-      })
-      console.log('🔗 [Live2DStore] 已集成状态同步管理器')
+        getCurrentModelState: getCurrentModelState,
+      });
+      console.log("🔗 [Live2DStore] State sync manager integrated");
     }
-  }
+  };
 
   const setCurrentModel = (model) => {
-    currentModel.value = model
-    
-    // 同步设置模型管理器中的当前模型
+    currentModel.value = model;
+
+    // Sync set the current model in the model manager
     if (manager.value && model?.id) {
       try {
-        manager.value.setCurrentModel(model.id)
-        console.log('🎯 [Live2DStore] 已同步设置模型管理器当前模型:', model.id)
+        manager.value.setCurrentModel(model.id);
+        console.log(
+          "🎯 [Live2DStore] Synced current model in model manager:",
+          model.id,
+        );
       } catch (error) {
-        console.error('❌ [Live2DStore] 设置模型管理器当前模型失败:', error)
+        console.error(
+          "❌ [Live2DStore] Failed to set current model in model manager:",
+          error,
+        );
       }
     }
-    
+
     if (!model) {
-      // 若为 null，重置 modelState 并安全返回
+      // If null, reset modelState and return safely
       Object.assign(modelState.settings, {
         scale: 0.2,
         position: { x: 0, y: 0 },
         rotation: 0,
         breathing: true,
         eyeBlinking: true,
-        interactive: true
-      })
-      return
+        interactive: true,
+      });
+      return;
     }
-    
-    // 检查是否已经有用户设置的缩放值
-    const hasUserScale = modelState.settings.scale && modelState.settings.scale !== 0.2
-    
-    // 同步状态
-    const meta = modelDataMap.value.get(model.id)
+
+    // Check if there is already a user-set scale value
+    const hasUserScale =
+      modelState.settings.scale && modelState.settings.scale !== 0.2;
+
+    // Sync state
+    const meta = modelDataMap.value.get(model.id);
     if (meta && meta.defaultState) {
-      // 保留用户已设置的缩放值
-      const userScale = hasUserScale ? modelState.settings.scale : undefined
-      Object.assign(modelState.settings, meta.defaultState)
+      // Preserve user-set scale value
+      const userScale = hasUserScale ? modelState.settings.scale : undefined;
+      Object.assign(modelState.settings, meta.defaultState);
       if (userScale !== undefined) {
-        modelState.settings.scale = userScale
+        modelState.settings.scale = userScale;
       }
     } else {
-      // 保留用户已设置的缩放值
-      const userScale = hasUserScale ? modelState.settings.scale : 0.2
+      // Preserve user-set scale value
+      const userScale = hasUserScale ? modelState.settings.scale : 0.2;
       Object.assign(modelState.settings, {
         scale: userScale,
         position: { x: 0, y: 0 },
         rotation: 0,
         breathing: true,
         eyeBlinking: true,
-        interactive: true
-      })
+        interactive: true,
+      });
     }
-  }
+  };
 
   const addLoadedModel = (modelData, modelInstance) => {
-    if (!modelData || !modelData.id) return
-    // 避免重复加载同id
-    if (loadedModels.value.has(modelData.id)) return
-    // 避免重复加载同url
+    if (!modelData || !modelData.id) return;
+    // Avoid duplicate loading of the same id
+    if (loadedModels.value.has(modelData.id)) return;
+    // Avoid duplicate loading of the same url
     for (const data of modelDataMap.value.values()) {
-      if (modelData.url && data.url === modelData.url) return
+      if (modelData.url && data.url === modelData.url) return;
     }
-    loadedModels.value.set(modelData.id, modelInstance)
+    loadedModels.value.set(modelData.id, modelInstance);
     const fullModelData = {
       id: modelData.id,
-      url: modelData.url || '',
+      url: modelData.url || "",
       name: modelData.name || modelData.id,
-      description: modelData.description || '',
-      thumbnail: modelData.thumbnail || '',
-      version: modelData.version || '',
-      author: modelData.author || '',
-      tags: modelData.tags || []
-    }
-    modelDataMap.value.set(modelData.id, fullModelData)
-  }
+      description: modelData.description || "",
+      thumbnail: modelData.thumbnail || "",
+      version: modelData.version || "",
+      author: modelData.author || "",
+      tags: modelData.tags || [],
+    };
+    modelDataMap.value.set(modelData.id, fullModelData);
+  };
 
   const removeLoadedModel = (id) => {
-    loadedModels.value.delete(id)
-    modelDataMap.value.delete(id)
-  }
+    loadedModels.value.delete(id);
+    modelDataMap.value.delete(id);
+  };
 
   const setModelData = (modelData = {}) => {
-    if (!modelData.id) return
+    if (!modelData.id) return;
     if (modelDataMap.value.has(modelData.id)) {
-      const old = modelDataMap.value.get(modelData.id)
+      const old = modelDataMap.value.get(modelData.id);
       modelDataMap.value.set(modelData.id, {
         ...old,
         ...modelData,
         name: modelData.name || old.name || modelData.id,
-        url: modelData.url || old.url || ''
-      })
-      return
+        url: modelData.url || old.url || "",
+      });
+      return;
     }
     const fullModelData = {
       id: modelData.id,
-      url: modelData.url || '',
+      url: modelData.url || "",
       name: modelData.name || modelData.id,
-      description: modelData.description || '',
-      thumbnail: modelData.thumbnail || '',
-      version: modelData.version || '',
-      author: modelData.author || '',
-      tags: modelData.tags || []
-    }
-    modelDataMap.value.set(modelData.id, fullModelData)
-  }
+      description: modelData.description || "",
+      thumbnail: modelData.thumbnail || "",
+      version: modelData.version || "",
+      author: modelData.author || "",
+      tags: modelData.tags || [],
+    };
+    modelDataMap.value.set(modelData.id, fullModelData);
+  };
 
-  const getModelData = (id) => modelDataMap.value.get(id) || null
+  const getModelData = (id) => modelDataMap.value.get(id) || null;
 
   const setLoading = (loading) => {
-    isLoading.value = loading
-  }
+    isLoading.value = loading;
+  };
 
   const setError = (err) => {
-    error.value = err
-  }
+    error.value = err;
+  };
 
-  // === 状态管理 API ===
-  // 注意：状态同步逻辑由 state-sync-manager.js 负责
-  // 这里只负责数据存储，不处理同步逻辑
+  // === State Management API ===
+  // Note: State sync logic is handled by state-sync-manager.js
+  // This only handles data storage, not sync logic
 
   /**
-   * 更新模型状态数据（仅数据存储，不处理同步）
-   * @param {Object} newState - 新的状态数据
+   * Update model state data (data storage only, no sync handling)
+   * @param {Object} newState - New state data
    */
   const updateModelState = (newState) => {
     try {
-      // 仅更新数据存储，不处理同步逻辑
-      // 同步逻辑由 state-sync-manager.js 负责
-      if (newState && typeof newState === 'object') {
-        Object.assign(modelState, newState)
-        console.log('📝 [Live2DStore] 模型状态数据已更新:', newState)
+      // Only update data storage, no sync logic handling
+      // Sync logic is handled by state-sync-manager.js
+      if (newState && typeof newState === "object") {
+        Object.assign(modelState, newState);
+        console.log("📝 [Live2DStore] Model state data updated:", newState);
       }
     } catch (error) {
-      log(`更新模型状态失败: ${error.message}`, 'error')
+      log(`Failed to update model state: ${error.message}`, "error");
     }
-  }
+  };
 
   /**
-   * 获取当前模型状态数据（仅返回数据，不进行同步）
-   * @returns {Object} 当前状态数据的副本
+   * Get current model state data (returns data only, no sync)
+   * @returns {Object} Copy of current state data
    */
   const getCurrentModelState = () => {
-    return { ...modelState }
-  }
+    return { ...modelState };
+  };
 
   /**
-   * 更新设置数据（仅数据存储，不处理同步）
-   * @param {Object} settings - 新的设置数据
+   * Update settings data (data storage only, no sync handling)
+   * @param {Object} settings - New settings data
    */
   const updateSettingsData = (settings) => {
     try {
-      // 仅更新设置数据存储，不处理同步逻辑
-      if (settings && typeof settings === 'object') {
-        Object.assign(modelState.settings || {}, settings)
-        console.log('📝 [Live2DStore] 设置数据已更新:', settings)
+      // Only update settings data storage, no sync logic handling
+      if (settings && typeof settings === "object") {
+        Object.assign(modelState.settings || {}, settings);
+        console.log("📝 [Live2DStore] Settings data updated:", settings);
       }
     } catch (error) {
-      log(`更新设置数据失败: ${error.message}`, 'error')
+      log(`Failed to update settings data: ${error.message}`, "error");
     }
-  }
+  };
 
-  // 移除重复的 updateSettings 方法，避免与 live2d-manager.js 中的方法混淆
-  // 状态同步逻辑统一由 state-sync-manager.js 处理
+  // Removed duplicate updateSettings method to avoid confusion with the one in live2d-manager.js
+  // State sync logic is handled uniformly by state-sync-manager.js
 
-  // AI控制相关方法
+  // AI control related methods
   const handleAIResponse = (aiResponse) => {
     if (!manager.value || !settings.enableAIControl) {
-      return
+      return;
     }
 
-    manager.value.handleAIResponse(aiResponse)
-  }
+    manager.value.handleAIResponse(aiResponse);
+  };
 
   const setAIControlEnabled = (enabled) => {
-    settings.enableAIControl = enabled
+    settings.enableAIControl = enabled;
     if (manager.value) {
-      manager.value.setAIControlEnabled(enabled)
+      manager.value.setAIControlEnabled(enabled);
     }
-  }
+  };
 
   const updateEmotionMapping = (mapping) => {
-    Object.assign(settings.emotionMapping, mapping)
-  }
+    Object.assign(settings.emotionMapping, mapping);
+  };
 
   const triggerExpression = (emotionName) => {
-    if (!manager.value || !settings.enableAIControl) return
+    if (!manager.value || !settings.enableAIControl) return;
 
-    const expressionIndex = settings.emotionMapping[emotionName.toLowerCase()]
-    if (typeof expressionIndex === 'number') {
-      const currentModel = manager.value.getCurrentModel()
+    const expressionIndex = settings.emotionMapping[emotionName.toLowerCase()];
+    if (typeof expressionIndex === "number") {
+      const currentModel = manager.value.getCurrentModel();
       if (currentModel) {
-        currentModel.setExpression(expressionIndex)
+        currentModel.setExpression(expressionIndex);
       }
     }
-  }
+  };
 
-  const triggerMotion = (group, index, priority = 'NORMAL') => {
-    if (!manager.value) return
+  const triggerMotion = (group, index, priority = "NORMAL") => {
+    if (!manager.value) return;
 
-    const currentModel = manager.value.getCurrentModel()
+    const currentModel = manager.value.getCurrentModel();
     if (currentModel) {
-      // 将字符串优先级转换为数字
-      let numericPriority = 2
+      // Convert string priority to number
+      let numericPriority = 2;
       switch (priority) {
-        case 'IDLE':
-          numericPriority = 1
-          break
-        case 'NORMAL':
-          numericPriority = 2
-          break
-        case 'FORCE':
-          numericPriority = 3
-          break
+        case "IDLE":
+          numericPriority = 1;
+          break;
+        case "NORMAL":
+          numericPriority = 2;
+          break;
+        case "FORCE":
+          numericPriority = 3;
+          break;
       }
-      
-      currentModel.playMotion(group, index, numericPriority)
+
+      currentModel.playMotion(group, index, numericPriority);
     }
-  }
+  };
 
   // Getters
   const hasLoadedModels = () => {
-    return loadedModels.value.size > 0
-  }
+    return loadedModels.value.size > 0;
+  };
 
-  const getModelById = (id) => loadedModels.value.get(id) || null
+  const getModelById = (id) => loadedModels.value.get(id) || null;
 
-  const getAllModels = () => Array.from(loadedModels.value.values()) || []
+  const getAllModels = () => Array.from(loadedModels.value.values()) || [];
 
   const getModelByUrl = (url) => {
     for (const [id, modelData] of modelDataMap.value.entries()) {
@@ -339,30 +346,30 @@ export const useLive2DStore = defineStore('live2d', () => {
         return {
           id,
           model: loadedModels.value.get(id) || null,
-          data: modelData
-        }
+          data: modelData,
+        };
       }
     }
-    return null
-  }
+    return null;
+  };
 
-  // 获取默认模型
+  // Get default model
   const getDefaultModel = () => {
-    // 首先尝试获取当前模型
+    // First try to get the current model
     if (currentModel.value) {
-      return currentModel.value
+      return currentModel.value;
     }
 
-    // 如果没有当前模型，尝试获取第一个已加载的模型
-    const models = getAllModels()
+    // If there is no current model, try to get the first loaded model
+    const models = getAllModels();
     if (models.length > 0) {
-      const firstModel = models[0]
-      const modelId = firstModel.id || Object.keys(modelDataMap.value)[0]
+      const firstModel = models[0];
+      const modelId = firstModel.id || Object.keys(modelDataMap.value)[0];
       if (modelId) {
-        return modelDataMap.value.get(modelId)
+        return modelDataMap.value.get(modelId);
       }
     }
-  }
+  };
 
   return {
     // State
@@ -402,6 +409,6 @@ export const useLive2DStore = defineStore('live2d', () => {
     getDefaultModel,
 
     // Additional Getters
-    getCurrentModelState
-  }
-})
+    getCurrentModelState,
+  };
+});

@@ -1,563 +1,512 @@
-/* 全局主题变量 */
+/* Global theme variables */
 :root {
-  --app-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --app-border-radius: 12px;
-  --app-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --app-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.15);
+    --app-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --app-border-radius: 12px;
+    --app-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --app-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 #app {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--n-body-color);
-  color: var(--n-text-color);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  transition: var(--app-transition);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--n-body-color);
+    color: var(--n-text-color);
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: var(--app-transition);
 }
 
 .modern-layout {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--n-body-color);
-  transition: var(--app-transition);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--n-body-color);
+    transition: var(--app-transition);
 }
 
-/* 顶部导航栏样式 */
-.top-nav {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--n-border-color);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  transition: var(--app-transition);
-  color: var(--n-text-color);
-}
-
-.brand-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--n-text-color);
-  transition: color 0.3s ease;
-}
-
-/* 深色主题下的标题样式 */
-.brand-title.dark-theme {
-  background: linear-gradient(45deg, #18a058, #2080f0);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* 浅色主题下的标题样式 */
-.brand-title:not(.dark-theme) {
-  background: linear-gradient(45deg, #18a058, #1976d2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.brand-icon {
-  font-size: 24px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-  /* 确保图标不受渐变影响 */
-  -webkit-text-fill-color: initial;
-  background: none;
-}
-
-.status-tag {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.theme-toggle {
-  transition: all 0.3s ease;
-}
-
-.theme-toggle:hover {
-  transform: rotate(180deg);
-}
-
-.settings-toggle {
-  transition: all 0.3s ease;
-}
-
-.settings-toggle.collapsed {
-  background: var(--n-primary-color);
-  color: white;
-}
-
-.settings-toggle:hover {
-  transform: scale(1.1);
-}
-
-/* 主要内容区域 */
+/* Main content area */
 .main-content {
-  flex: 1;
-  padding: 1px;
-  /* overflow: hidden; */
-  background: var(--n-body-color);
-  transition: var(--app-transition);
-  color: var(--n-text-color);
+    flex: 1;
+    padding: 1px;
+    height: 100vh;
+    background: var(--n-body-color);
+    transition: var(--app-transition);
+    color: var(--n-text-color);
 }
 
 .main-split {
-  height: 100%;
-  gap: 5px;
+    height: 100%;
+    gap: 5px;
 }
 
-/* 左侧设置面板 */
+/* Left settings panel */
 .settings-panel {
-  display: flex;
-  height: 100%;
-  gap: 5px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  background: var(--n-body-color);
-  color: var(--n-text-color);
+    display: flex;
+    height: 100%;
+    gap: 5px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background: var(--n-body-color);
+    color: var(--n-text-color);
 }
 
 .settings-panel.collapsed {
-  gap: 0;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 1px 2px;
-  background: var(--n-body-color);
+    gap: 0;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 1px 2px;
+    background: var(--n-body-color);
 }
 
 .settings-sidebar {
-  width: 200px;
-  flex-shrink: 0;
-  transition: all 0.3s ease;
-  background: var(--n-body-color);
-  color: var(--n-text-color);
+    width: 200px;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+    background: var(--n-body-color);
+    color: var(--n-text-color);
+}
+
+.settings-sidebar.icon-only-sidebar {
+    width: 52px;
+    min-width: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 12px;
+    background: var(--n-body-color);
+}
+
+.icon-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 4px;
+}
+
+.icon-menu-item {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 20px;
+    transition: all 0.3s ease;
+    border-radius: 10px !important;
+}
+
+.icon-menu-item:hover {
+    transform: scale(1.15);
 }
 
 .collapsed-sidebar {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  padding-top: 16px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding-top: 16px;
 }
 
 .collapsed-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-right: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-right: auto;
 }
 
 .collapsed-menu-item {
-  width: 40px;
-  height: 40px;
-  transition: all 0.3s ease;
+    width: 40px;
+    height: 40px;
+    transition: all 0.3s ease;
 }
 
 .collapsed-menu-item:hover {
-  transform: scale(1.1);
+    transform: scale(1.1);
 }
 
 .menu-card {
-  height: 100%;
-  border-radius: 12px;
-  box-shadow: var(--app-shadow);
-  border: 1px solid var(--n-border-color);
-  transition: var(--app-transition);
-  color: var(--n-text-color);
-  padding: 0px
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: var(--app-shadow);
+    border: 1px solid var(--n-border-color);
+    transition: var(--app-transition);
+    color: var(--n-text-color);
+    padding: 0px;
 }
 
 .main-menu {
-  border-radius: 8px;
+    border-radius: 8px;
 }
 
 .settings-content {
-  flex: 1;
-  max-height: calc(100vh - 60px);
-  overflow-y: auto;
-  transition: all 0.3s ease;
-}
-
-.settings-content :deep(.n-card__content) {
-  height: calc(100vh - 60px);
-  overflow-y: auto;
+    flex: 1;
+    height: 100%;
+    max-height: 100vh;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
 .content-card {
-  height: 100%;
-  border-radius: 12px;
-  box-shadow: var(--app-shadow);
-  border: 1px solid var(--n-border-color);
-  overflow-y: auto;
-  transition: var(--app-transition);
-  color: var(--n-text-color);
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    border-radius: 12px;
+    box-shadow: var(--app-shadow);
+    border: 1px solid var(--n-border-color);
+    transition: var(--app-transition);
+    color: var(--n-text-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.content-card :deep(.n-card__content) {
-  height: calc(100% - 60px);
-  overflow: hidden;
-  padding: 0;
-  padding: 2px;
+/*
+ * Target ONLY the content-card's own n-card__content (direct child).
+ * Use !important to override Naive UI inline styles that set overflow:hidden.
+ */
+.content-card > .n-card__content {
+    flex: 1 !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    padding: 2px !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
-/* 可滚动内容区域 */
+/* Scrollable content area — this is the single scroll container */
 .scrollable-content {
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 1px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--n-scrollbar-color) transparent;
-  transition: var(--app-transition);
-  color: var(--n-text-color);
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    padding: 1px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--n-scrollbar-color) transparent;
+    transition: var(--app-transition);
+    color: var(--n-text-color);
+}
+
+/*
+ * CRITICAL: Prevent nested n-card__content (inside ModelSelector, tabs, etc.)
+ * from inheriting restrictive overflow/height from global styles.
+ * These nested cards must flow naturally.
+ */
+.scrollable-content .n-card__content {
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* Ensure Naive UI n-tabs pane wrappers don't clip content */
+.scrollable-content .n-tabs-pane-wrapper {
+    overflow: visible !important;
+}
+
+.scrollable-content .n-tab-pane {
+    overflow: visible !important;
 }
 
 .scrollable-content::-webkit-scrollbar {
-  width: 6px;
+    width: 6px;
 }
 
 .scrollable-content::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 
 .scrollable-content::-webkit-scrollbar-thumb {
-  background: var(--n-scrollbar-color);
-  border-radius: 3px;
-  transition: var(--app-transition);
+    background: var(--n-scrollbar-color);
+    border-radius: 3px;
+    transition: var(--app-transition);
 }
 
 .scrollable-content::-webkit-scrollbar-thumb:hover {
-  background: var(--n-scrollbar-color-hover);
+    background: var(--n-scrollbar-color-hover);
 }
 
-/* 右侧Live2D区域 */
+/* Right Live2D area */
 .live2d-main-area {
-  height: 100%;
-  color: var(--n-text-color);
-  transition: var(--app-transition);
+    height: 100%;
+    color: var(--n-text-color);
+    transition: var(--app-transition);
 }
 
 .live2d-split {
-  height: 100%;
-  gap: 5px;
+    height: 100%;
+    gap: 5px;
 }
 
 .live2d-viewer-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .live2d-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  border-radius: 12px;
-  box-shadow: var(--app-shadow);
-  border: 1px solid var(--n-border-color);
-  transition: var(--app-transition);
-  color: var(--n-text-color);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    box-shadow: var(--app-shadow);
+    border: 1px solid var(--n-border-color);
+    transition: var(--app-transition);
+    color: var(--n-text-color);
 }
 
 .live2d-card .n-card__content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .live2d-display-area {
-  position: relative;
-  height: 100%;
-  min-height: 400px;
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    position: relative;
+    height: 100%;
+    min-height: 400px;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-
-/* AI控制面板 */
-.ai-control-container {
-  overflow-y: auto;
-}
-
-
-
-/* 加载容器 */
+/* Loading container */
 .loading-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
 }
 
-/* 响应式设计 */
+/* Responsive design */
 @media (max-width: 1200px) {
-  .main-split {
-    --n-split-default-size: 0.4;
-  }
+    .main-split {
+        --n-split-default-size: 0.4;
+    }
 
-  .settings-sidebar {
-    width: 180px;
-  }
+    .settings-sidebar {
+        width: 180px;
+    }
 
-  .collapsed-menu-item {
-    width: 36px;
-    height: 36px;
-  }
+    .settings-sidebar.icon-only-sidebar {
+        width: 48px;
+        min-width: 48px;
+    }
+
+    .icon-menu-item {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 18px;
+    }
+
+    .collapsed-menu-item {
+        width: 36px;
+        height: 36px;
+    }
 }
 
 @media (max-width: 768px) {
-  .main-content {
-    padding: 8px;
-  }
+    .main-content {
+        padding: 8px;
+    }
 
-  .settings-panel {
-    flex-direction: column;
-    gap: 8px;
-  }
+    .settings-panel {
+        flex-direction: column;
+        gap: 8px;
+    }
 
-  .settings-panel.collapsed {
-    flex-direction: row;
-    padding: 8px;
-  }
+    .settings-panel.collapsed {
+        flex-direction: row;
+        padding: 8px;
+    }
 
-  .settings-sidebar {
-    width: 100%;
-    height: auto;
-  }
+    .settings-sidebar {
+        width: 100%;
+        height: auto;
+    }
 
-  .collapsed-sidebar {
-    width: auto;
-    padding-top: 8px;
-  }
+    .settings-sidebar.icon-only-sidebar {
+        width: 100%;
+        min-width: unset;
+        flex-direction: row;
+        justify-content: center;
+        padding-top: 0;
+        padding: 8px 0;
+    }
 
-  .collapsed-menu {
-    flex-direction: row;
-    gap: 8px;
-  }
+    .icon-menu {
+        flex-direction: row;
+        gap: 8px;
+    }
 
-  .collapsed-menu-item {
-    width: 32px;
-    height: 32px;
-  }
+    .icon-menu-item {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 16px;
+    }
 
-  .brand-title {
-    font-size: 18px;
-  }
+    .collapsed-sidebar {
+        width: auto;
+        padding-top: 8px;
+    }
 
-  .top-nav {
-    padding: 12px 16px;
-  }
+    .collapsed-menu {
+        flex-direction: row;
+        gap: 8px;
+    }
 
-  .scrollable-content {
-    padding: 12px;
-  }
+    .collapsed-menu-item {
+        width: 32px;
+        height: 32px;
+    }
+
+    .scrollable-content {
+        padding: 12px;
+    }
 }
 
 @media (max-width: 480px) {
-  .brand-title {
-    font-size: 16px;
-  }
+    .collapsed-menu-item {
+        width: 28px;
+        height: 28px;
+    }
 
-  .brand-section {
-    gap: 8px;
-  }
+    .settings-sidebar.icon-only-sidebar {
+        width: 100%;
+        min-width: unset;
+    }
 
-  .collapsed-menu-item {
-    width: 28px;
-    height: 28px;
-  }
+    .icon-menu-item {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 14px;
+    }
 
-  .main-content {
-    padding: 4px;
-  }
+    .main-content {
+        padding: 4px;
+    }
 
-  .scrollable-content {
-    padding: 8px;
-  }
+    .scrollable-content {
+        padding: 8px;
+    }
 }
 
-/* 确保模态框在最上层 */
+/* Ensure modal is on top layer */
 .n-modal {
-  z-index: 1000 !important;
+    z-index: 1000 !important;
 }
 
-/* 确保字幕在最上层 */
-.subtitle-container {
-  z-index: 999 !important;
+/* Split divider style */
+.n-split-pane-divider {
+    background: var(--n-border-color);
+    transition: all 0.3s ease;
+    width: 4px;
 }
 
-/* 确保历史记录模态框在最上层 */
-.history-modal {
-  z-index: 1000 !important;
+.n-split-pane-divider:hover {
+    background: var(--n-primary-color);
 }
 
-/* 分割器样式优化 */
-:deep(.n-split-pane-divider) {
-  background: var(--n-border-color);
-  transition: all 0.3s ease;
-  width: 4px;
+.n-split-pane-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 20px;
+    background: var(--n-primary-color);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-:deep(.n-split-pane-divider:hover) {
-  background: var(--n-primary-color);
+.n-split-pane-divider:hover::after {
+    opacity: 1;
 }
 
-:deep(.n-split-pane-divider::after) {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 2px;
-  height: 20px;
-  background: var(--n-primary-color);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+/* Card header border */
+.n-card__header {
+    border-bottom: 1px solid var(--n-border-color);
 }
 
-:deep(.n-split-pane-divider:hover::after) {
-  opacity: 1;
-}
-
-/* 卡片样式优化 */
-:deep(.n-card) {
-  transition: var(--app-transition);
-  border: 1px solid var(--n-border-color);
-}
-
-:deep(.n-card:hover) {
-  box-shadow: var(--app-shadow-hover);
-  transform: translateY(-1px);
-}
-
-:deep(.n-card__header) {
-  border-bottom: 1px solid var(--n-border-color);
-}
-
-/* 菜单样式优化 */
-:deep(.n-menu-item) {
-  border-radius: 8px;
-  margin: 2px 0;
-  transition: var(--app-transition);
-}
-
-:deep(.n-menu-item:hover) {
-  background: var(--n-primary-color-hover);
-  transform: translateX(2px);
-}
-
-:deep(.n-menu-item.n-menu-item--selected) {
-  background: var(--n-primary-color);
-  color: white;
-  box-shadow: 0 2px 8px rgba(var(--n-primary-color-rgb), 0.3);
-}
-
-/* 按钮样式优化 */
-:deep(.n-button) {
-  transition: var(--app-transition);
-}
-
-:deep(.n-button:hover) {
-  transform: translateY(-1px);
-}
-
-/* 输入框样式优化 */
-:deep(.n-input) {
-  transition: var(--app-transition);
-}
-
-:deep(.n-input:focus-within) {
-  box-shadow: 0 0 0 2px rgba(var(--n-primary-color-rgb), 0.2);
-}
-
-/* 标签样式优化 */
-:deep(.n-tag) {
-  transition: var(--app-transition);
-}
-
-/* 滚动条样式优化 */
-:deep(.n-scrollbar-rail) {
-  transition: var(--app-transition);
-}
-
-/* 分割线样式优化 */
-:deep(.n-divider) {
-  border-color: var(--n-border-color);
-  transition: var(--app-transition);
-}
-
-/* 添加桌宠模式样式 */
-.pet-mode {
-  background: transparent !important;
-  overflow: hidden;
-}
-
-.pet-mode-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: transparent;
-}
-
-.pet-model-container {
-  flex: 1;
-  position: relative;
-  min-height: 400px;
-}
-
-.pet-chat-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-  z-index: 1000;
-}
-
-/* 确保在桌宠模式下隐藏其他元素 */
-.pet-mode .main-layout {
-  display: none;
-}
-
-/* 保持原有样式 */
+/* Keep original styles */
 .app-container {
-  height: 100vh;
-  overflow: hidden;
+    height: 100vh;
+    overflow: hidden;
 }
 
-/* 添加主题相关的样式 */
+/* ── Theme transitions ──────────────────────────────────────────────────────
+   Smooth transition saat tema berubah.  Berlaku untuk body dan semua elemen
+   yang menggunakan var(--n-body-color) / var(--n-text-color).
+   ──────────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+    transition:
+        background-color 0.25s ease,
+        background 0.25s ease,
+        color 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease !important;
+}
+
+/* Elemen yang sebaiknya TIDAK dikenai transition warna (animasi PIXI, SVG, dll.) */
+canvas,
+canvas *,
+.live2d-viewer,
+.live2d-viewer * {
+    transition: none !important;
+}
+
+/* ── Body base ──────────────────────────────────────────────────────────────
+   Nilai background / color di-set langsung oleh applyThemeToDOM() melalui
+   body.style, sehingga aturan CSS di sini hanya perlu mengikuti var() yang
+   sudah diinjeksi ke :root.
+   ──────────────────────────────────────────────────────────────────────── */
 body {
-  transition: background-color 0.3s ease, color 0.3s ease;
+    background: var(--n-body-color);
+    color: var(--n-text-color1);
 }
 
-body.dark-theme {
-  background-color: var(--n-body-color-dark);
-  color: var(--n-text-color-dark);
+/* ── Dark theme overrides ───────────────────────────────────────────────────
+   Selector [data-theme="dark"] di-set oleh applyThemeToDOM() pada <html> dan
+   <body>.  Aturan di sini sebagai fallback CSS murni (tanpa JS).
+   ──────────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"],
+[data-theme="dark"] body {
+    color-scheme: dark;
+    background: rgb(16, 16, 20);
+    color: rgba(255, 255, 255, 0.9);
 }
 
-body.light-theme {
-  background-color: var(--n-body-color-light);
-  color: var(--n-text-color-light);
+:root[data-theme="light"],
+[data-theme="light"] body {
+    color-scheme: light;
+    background: #fff;
+    color: rgb(31, 34, 37);
+}
+
+/* ── Scrollbar theming ──────────────────────────────────────────────────────
+   Override scrollbar warna agar mengikuti tema aktif, bukan nilai default
+   browser.
+   ──────────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+}
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+:root[data-theme="light"] ::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.25);
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.4);
 }

@@ -1,280 +1,347 @@
 /**
- * Live2D Animation Manager - 动画管理器
- * 负责处理模型动作、表情和音频播放
+ * Live2D Animation Manager
+ * Handles model motions, expressions, and audio playback
  */
 
-import { createLogger } from './utils.js'
+import { createLogger } from "./utils.js";
 
 export class Live2DAnimationManager {
   constructor(modelManager) {
-    this.modelManager = modelManager
-    this.currentAudioPlayer = null
-    this.animationQueue = new Map() // 动画队列
-    this.isPlaying = new Map() // 播放状态跟踪
-    this.isPetMode = false
-    this.logger = createLogger('Live2DAnimationManager')
+    this.modelManager = modelManager;
+    this.currentAudioPlayer = null;
+    this.animationQueue = new Map(); // Animation queue
+    this.isPlaying = new Map(); // Playback state tracking
+    this.isPetMode = false;
+    this.audioEnabled = true; // Whether audio playback is enabled
+    this.audioVolume = 1.0; // Default audio volume
+    this.logger = createLogger("Live2DAnimationManager");
   }
 
   /**
-   * 设置桌宠模式
-   * @param {boolean} enabled - 是否启用桌宠模式
+   * Set pet mode
+   * @param {boolean} enabled - Whether to enable pet mode
    */
   setPetMode(enabled) {
-    this.isPetMode = enabled
-    this.logger.log(`🐾 桌宠模式${enabled ? '已启用' : '已禁用'}`)
+    this.isPetMode = enabled;
+    this.logger.log(`🐾 Pet mode ${enabled ? "enabled" : "disabled"}`);
 
     if (enabled) {
-      // 停止所有当前动画
-      this.stopAllAnimations()
-      
-      // 停止音频播放
-      this.stopAudio()
+      // Stop all current animations
+      this.stopAllAnimations();
+
+      // Stop audio playback
+      this.stopAudio();
     }
   }
 
   /**
-   * 播放模型动作
-   * @param {string} modelId - 模型ID
-   * @param {string} group - 动作组名
-   * @param {number} index - 动作索引
-   * @param {number} priority - 优先级
+   * Play model motion
+   * @param {string} modelId - Model ID
+   * @param {string} group - Motion group name
+   * @param {number} index - Motion index
+   * @param {number} priority - Priority
    */
   async playMotion(modelId, group, index, priority = 2) {
-    const heroModel = this.modelManager.getModel(modelId)
+    const heroModel = this.modelManager.getModel(modelId);
     if (!heroModel) {
-      this.logger.warn('⚠️ 模型不存在:', modelId)
-      return false
+      this.logger.warn("⚠️ Model not found:", modelId);
+      return false;
     }
 
     try {
-      // 桌宠模式下限制动作优先级
-      const adjustedPriority = this.isPetMode ? Math.min(priority, 1) : priority
-      
-      const result = await heroModel.playMotion(group, index, adjustedPriority)
-      this.logger.log('🎭 播放动作:', {
-        modelId, group, index, priority: adjustedPriority, result
-      })
-      return result
+      // Limit motion priority in pet mode
+      const adjustedPriority = this.isPetMode
+        ? Math.min(priority, 1)
+        : priority;
+
+      const result = await heroModel.playMotion(group, index, adjustedPriority);
+      this.logger.log("🎭 Playing motion:", {
+        modelId,
+        group,
+        index,
+        priority: adjustedPriority,
+        result,
+      });
+
+      // Automatically play associated audio if enabled
+      if (result && this.audioEnabled) {
+        this._playMotionAudio(heroModel, group, index);
+      }
+
+      return result;
     } catch (error) {
-      this.logger.error('❌ 播放动作失败:', error)
-      return false
+      this.logger.error("❌ Failed to play motion:", error);
+      return false;
     }
   }
 
   /**
-   * 播放随机动作
-   * @param {string} modelId - 模型ID
-   * @param {string} group - 动作组名（可选）
+   * Play random motion
+   * @param {string} modelId - Model ID
+   * @param {string} group - Motion group name (optional)
    */
   async playRandomMotion(modelId, group = null) {
-    const heroModel = this.modelManager.getModel(modelId)
+    const heroModel = this.modelManager.getModel(modelId);
     if (!heroModel) {
-      this.logger.warn('⚠️ 模型不存在:', modelId)
-      return false
+      this.logger.warn("⚠️ Model not found:", modelId);
+      return false;
     }
 
     try {
-      // 桌宠模式下优先使用空闲动作
-      const targetGroup = this.isPetMode ? (group || 'idle') : group
-      
-      const result = await heroModel.playRandomMotion(targetGroup)
-      this.logger.log('🎲 播放随机动作:', {
-        modelId, group: targetGroup, result
-      })
-      return result
+      // Prefer idle motions in pet mode
+      const targetGroup = this.isPetMode ? group || "idle" : group;
+
+      const result = await heroModel.playRandomMotion(targetGroup);
+      this.logger.log("🎲 Playing random motion:", {
+        modelId,
+        group: targetGroup,
+        result,
+      });
+
+      return result;
     } catch (error) {
-      this.logger.error('❌ 播放随机动作失败:', error)
-      return false
+      this.logger.error("❌ Failed to play random motion:", error);
+      return false;
     }
   }
 
   /**
-   * 设置模型表情
-   * @param {string} modelId - 模型ID
-   * @param {number} expressionIndex - 表情索引
+   * Set model expression
+   * @param {string} modelId - Model ID
+   * @param {number} expressionIndex - Expression index
    */
   setExpression(modelId, expressionIndex) {
-    const heroModel = this.modelManager.getModel(modelId)
+    const heroModel = this.modelManager.getModel(modelId);
     if (!heroModel) {
-      this.logger.warn('⚠️ 模型不存在:', modelId)
-      return false
+      this.logger.warn("⚠️ Model not found:", modelId);
+      return false;
     }
 
     try {
-      heroModel.setExpression(expressionIndex)
-      this.logger.log('😊 设置表情:', {
-        modelId, expressionIndex
-      })
-      return true
+      heroModel.setExpression(expressionIndex);
+      this.logger.log("😊 Set expression:", {
+        modelId,
+        expressionIndex,
+      });
+      return true;
     } catch (error) {
-      this.logger.error('❌ 设置表情失败:', error)
-      return false
+      this.logger.error("❌ Failed to set expression:", error);
+      return false;
     }
   }
 
   /**
-   * 播放随机表情
-   * @param {string} modelId - 模型ID
+   * Play random expression
+   * @param {string} modelId - Model ID
    */
   playRandomExpression(modelId) {
-    const heroModel = this.modelManager.getModel(modelId)
+    const heroModel = this.modelManager.getModel(modelId);
     if (!heroModel) {
-      this.logger.warn('⚠️ 模型不存在:', modelId)
-      return false
+      this.logger.warn("⚠️ Model not found:", modelId);
+      return false;
     }
 
     try {
-      const result = heroModel.playRandomExpression()
-      this.logger.log('🎲 播放随机表情:', {
-        modelId, result
-      })
-      return result
+      const result = heroModel.playRandomExpression();
+      this.logger.log("🎲 Playing random expression:", {
+        modelId,
+        result,
+      });
+      return result;
     } catch (error) {
-      this.logger.error('❌ 播放随机表情失败:', error)
-      return false
+      this.logger.error("❌ Failed to play random expression:", error);
+      return false;
     }
   }
 
   /**
-   * 批量控制表情
-   * @param {Array} expressions - 表情索引数组
-   * @param {Array} modelIds - 目标模型ID数组（可选，默认所有模型）
+   * Batch control expressions
+   * @param {Array} expressions - Expression index array
+   * @param {Array} modelIds - Target model ID array (optional, defaults to all models)
    */
   batchControlExpressions(expressions, modelIds = null) {
-    const targetIds = modelIds || this.modelManager.getAllModelIds()
-    const results = []
+    const targetIds = modelIds || this.modelManager.getAllModelIds();
+    const results = [];
 
-    targetIds.forEach(modelId => {
-      expressions.forEach(expressionIndex => {
-        const result = this.setExpression(modelId, expressionIndex)
-        results.push({ modelId, expressionIndex, success: result })
-      })
-    })
+    targetIds.forEach((modelId) => {
+      expressions.forEach((expressionIndex) => {
+        const result = this.setExpression(modelId, expressionIndex);
+        results.push({ modelId, expressionIndex, success: result });
+      });
+    });
 
-    // this.logger.log('🎭 批量表情控制完成:', results)
-    return results
+    // this.logger.log('🎭 Batch expression control completed:', results)
+    return results;
   }
 
   /**
-   * 批量控制动作
-   * @param {Array} motions - 动作数据数组 [{group, index, priority}]
-   * @param {Array} modelIds - 目标模型ID数组（可选，默认所有模型）
+   * Batch control motions
+   * @param {Array} motions - Motion data array [{group, index, priority}]
+   * @param {Array} modelIds - Target model ID array (optional, defaults to all models)
    */
   async batchControlMotions(motions, modelIds = null) {
-    const targetIds = modelIds || this.modelManager.getAllModelIds()
-    const results = []
+    const targetIds = modelIds || this.modelManager.getAllModelIds();
+    const results = [];
 
     for (const modelId of targetIds) {
       for (const motion of motions) {
-        const { group, index, priority = 2 } = motion
-        const result = await this.playMotion(modelId, group, index, priority)
-        results.push({ modelId, group, index, priority, success: result })
+        const { group, index, priority = 2 } = motion;
+        const result = await this.playMotion(modelId, group, index, priority);
+        results.push({ modelId, group, index, priority, success: result });
       }
     }
 
-    // this.logger.log('🎭 批量动作控制完成:', results)
-    return results
+    // this.logger.log('🎭 Batch motion control completed:', results)
+    return results;
   }
 
   /**
-   * 播放音频
-   * @param {string} audioUrl - 音频URL
-   * @param {Object} options - 播放选项
+   * Play audio
+   * @param {string} audioUrl - Audio URL
+   * @param {Object} options - Playback options
    */
+  /**
+   * Set audio enabled state
+   * @param {boolean} enabled - Whether to enable audio
+   */
+  setAudioEnabled(enabled) {
+    this.audioEnabled = enabled;
+    this.logger.log(`🔊 Audio ${enabled ? "enabled" : "disabled"}`);
+
+    // If disabling, stop any currently playing audio
+    if (!enabled) {
+      this.stopAudio();
+    }
+  }
+
+  /**
+   * Get audio enabled state
+   * @returns {boolean}
+   */
+  getAudioEnabled() {
+    return this.audioEnabled;
+  }
+
+  /**
+   * Play audio associated with a specific motion
+   * @param {HeroModel} heroModel - HeroModel instance
+   * @param {string} group - Motion group name
+   * @param {number} index - Motion index
+   * @private
+   */
+  _playMotionAudio(heroModel, group, index) {
+    try {
+      if (!heroModel.getMotionAudioUrl) return;
+
+      const audioUrl = heroModel.getMotionAudioUrl(group, index);
+      if (audioUrl) {
+        this.logger.log("🔊 Motion has audio, playing:", audioUrl);
+        this.playAudio(audioUrl, { volume: this.audioVolume });
+      }
+    } catch (error) {
+      this.logger.warn("⚠️ Failed to play motion audio:", error);
+    }
+  }
+
   async playAudio(audioUrl, options = {}) {
-    // 桌宠模式下不播放音频
+    // Do not play audio in pet mode
     if (this.isPetMode) {
-      // this.logger.log('🔇 桌宠模式下不播放音频')
-      return false
+      // this.logger.log('🔇 Audio disabled in pet mode')
+      return false;
+    }
+
+    // Do not play audio if audio is disabled
+    if (!this.audioEnabled) {
+      return false;
     }
 
     try {
-      // 停止当前播放的音频
-      this.stopAudio()
+      // Stop currently playing audio
+      this.stopAudio();
 
-      // 创建新的音频播放器
-      this.currentAudioPlayer = new Audio(audioUrl)
-      
-      // 设置音频属性
-      const { volume = 1.0, loop = false, playbackRate = 1.0 } = options
-      this.currentAudioPlayer.volume = volume
-      this.currentAudioPlayer.loop = loop
-      this.currentAudioPlayer.playbackRate = playbackRate
+      // Create new audio player
+      this.currentAudioPlayer = new Audio(audioUrl);
 
-      // 播放音频
-      await this.currentAudioPlayer.play()
-      
-      this.logger.log('🔊 音频播放开始:', audioUrl)
+      // Set audio properties
+      const { volume = 1.0, loop = false, playbackRate = 1.0 } = options;
+      this.currentAudioPlayer.volume = volume;
+      this.currentAudioPlayer.loop = loop;
+      this.currentAudioPlayer.playbackRate = playbackRate;
 
-      // 监听播放结束事件
-      this.currentAudioPlayer.addEventListener('ended', () => {
-        this.logger.log('🔇 音频播放结束')
-        this.currentAudioPlayer = null
-      })
+      // Play audio
+      await this.currentAudioPlayer.play();
 
-      return true
+      this.logger.log("🔊 Audio playback started:", audioUrl);
+
+      // Listen for playback end event
+      this.currentAudioPlayer.addEventListener("ended", () => {
+        this.logger.log("🔇 Audio playback ended");
+        this.currentAudioPlayer = null;
+      });
+
+      return true;
     } catch (error) {
-      this.logger.error('❌ 音频播放失败:', error)
-      this.currentAudioPlayer = null
-      return false
+      this.logger.error("❌ Audio playback failed:", error);
+      this.currentAudioPlayer = null;
+      return false;
     }
   }
 
   /**
-   * 停止音频播放
+   * Stop audio playback
    */
   stopAudio() {
     if (this.currentAudioPlayer) {
-      this.currentAudioPlayer.pause()
-      this.currentAudioPlayer.currentTime = 0
-      this.currentAudioPlayer = null
-      this.logger.log('⏹️ 音频播放已停止')
+      this.currentAudioPlayer.pause();
+      this.currentAudioPlayer.currentTime = 0;
+      this.currentAudioPlayer = null;
+      this.logger.log("⏹️ Audio playback stopped");
     }
   }
 
   /**
-   * 暂停音频播放
+   * Pause audio playback
    */
   pauseAudio() {
     if (this.currentAudioPlayer && !this.currentAudioPlayer.paused) {
-      this.currentAudioPlayer.pause()
-      this.logger.log('⏸️ 音频播放已暂停')
-      return true
+      this.currentAudioPlayer.pause();
+      this.logger.log("⏸️ Audio playback paused");
+      return true;
     }
-    return false
+    return false;
   }
 
   /**
-   * 恢复音频播放
+   * Resume audio playback
    */
   resumeAudio() {
     if (this.currentAudioPlayer && this.currentAudioPlayer.paused) {
-      this.currentAudioPlayer.play()
-      this.logger.log('▶️ 音频播放已恢复')
-      return true
+      this.currentAudioPlayer.play();
+      this.logger.log("▶️ Audio playback resumed");
+      return true;
     }
-    return false
+    return false;
   }
 
   /**
-   * 设置音频音量
-   * @param {number} volume - 音量 (0.0 - 1.0)
+   * Set audio volume
+   * @param {number} volume - Volume (0.0 - 1.0)
    */
   setAudioVolume(volume) {
     if (this.currentAudioPlayer) {
-      this.currentAudioPlayer.volume = Math.max(0, Math.min(1, volume))
-      this.logger.log('🔊 音量设置为:', volume)
-      return true
+      this.currentAudioPlayer.volume = Math.max(0, Math.min(1, volume));
+      this.logger.log("🔊 Volume set to:", volume);
+      return true;
     }
-    return false
+    return false;
   }
 
   /**
-   * 获取音频播放状态
+   * Get audio playback status
    */
   getAudioStatus() {
     if (!this.currentAudioPlayer) {
-      return { playing: false, paused: false, currentTime: 0, duration: 0 }
+      return { playing: false, paused: false, currentTime: 0, duration: 0 };
     }
 
     return {
@@ -282,73 +349,73 @@ export class Live2DAnimationManager {
       paused: this.currentAudioPlayer.paused,
       currentTime: this.currentAudioPlayer.currentTime,
       duration: this.currentAudioPlayer.duration || 0,
-      volume: this.currentAudioPlayer.volume
-    }
+      volume: this.currentAudioPlayer.volume,
+    };
   }
 
   /**
-   * 获取模型动作信息
-   * @param {string} modelId - 模型ID
+   * Get model motion information
+   * @param {string} modelId - Model ID
    */
   getModelMotions(modelId) {
-    const heroModel = this.modelManager.getModel(modelId)
+    const heroModel = this.modelManager.getModel(modelId);
     if (!heroModel) {
-      this.logger.warn('⚠️ 模型不存在:', modelId)
-      return null
+      this.logger.warn("⚠️ Model not found:", modelId);
+      return null;
     }
 
     try {
-      return heroModel.getMotions()
+      return heroModel.getMotions();
     } catch (error) {
-      this.logger.error('❌ 获取动作信息失败:', error)
-      return null
+      this.logger.error("❌ Failed to get motion info:", error);
+      return null;
     }
   }
 
   /**
-   * 获取模型表情信息
-   * @param {string} modelId - 模型ID
+   * Get model expression information
+   * @param {string} modelId - Model ID
    */
   getModelExpressions(modelId) {
-    const heroModel = this.modelManager.getModel(modelId)
+    const heroModel = this.modelManager.getModel(modelId);
     if (!heroModel) {
-      this.logger.warn('⚠️ 模型不存在:', modelId)
-      return null
+      this.logger.warn("⚠️ Model not found:", modelId);
+      return null;
     }
 
     try {
-      return heroModel.getExpressions()
+      return heroModel.getExpressions();
     } catch (error) {
-      this.logger.error('❌ 获取表情信息失败:', error)
-      return null
+      this.logger.error("❌ Failed to get expression info:", error);
+      return null;
     }
   }
 
   /**
-   * 停止所有动画
+   * Stop all animations
    */
   stopAllAnimations() {
-    this.modelManager.getAllModels().forEach(heroModel => {
+    this.modelManager.getAllModels().forEach((heroModel) => {
       try {
         if (heroModel.stopAllMotions) {
-          heroModel.stopAllMotions()
+          heroModel.stopAllMotions();
         }
       } catch (error) {
-        this.logger.error('❌ 停止动画失败:', error)
+        this.logger.error("❌ Failed to stop animation:", error);
       }
-    })
+    });
 
-    this.stopAudio()
-    this.logger.log('⏹️ 所有动画已停止')
+    this.stopAudio();
+    this.logger.log("⏹️ All animations stopped");
   }
 
   /**
-   * 销毁动画管理器
+   * Destroy animation manager
    */
   destroy() {
-    this.stopAllAnimations()
-    this.animationQueue.clear()
-    this.isPlaying.clear()
-    this.logger.log('🧹 动画管理器已销毁')
+    this.stopAllAnimations();
+    this.animationQueue.clear();
+    this.isPlaying.clear();
+    this.logger.log("🧹 Animation manager destroyed");
   }
 }
