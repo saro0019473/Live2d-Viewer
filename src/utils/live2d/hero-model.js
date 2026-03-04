@@ -595,12 +595,20 @@ export class HeroModel {
         return false;
       }
 
-      // If the motion is not an idle motion, automatically switch to a random idle motion after playback ends
-      // if (group !== "idle") {
-      //   motionManager.once("motionFinish", () => {
-      //     this.playRandomMotion("idle");
-      //   });
-      // }
+      // ── Fix: reset state before starting a new motion ──────────────
+      // pixi-live2d's MotionState.reserve() rejects a motion call when
+      // the same (group, index) pair is already recorded as "current".
+      // After a motion finishes the state is only cleared on the *next*
+      // update() tick, so a rapid replay of the same motion is silently
+      // rejected → the motion never starts, or starts with stale queue
+      // entries that cause visible framedrop / slow-motion on the 2nd+
+      // play.
+      //
+      // Calling stopAllMotions() clears the internal _motions queue and
+      // resets MotionState (currentGroup, currentIndex, priorities) so
+      // the subsequent startMotion() is guaranteed to pass reserve().
+      // ───────────────────────────────────────────────────────────────
+      motionManager.stopAllMotions();
 
       const success = await motionManager.startMotion(group, index);
 
@@ -781,6 +789,7 @@ export class HeroModel {
     ) {
       return;
     }
+
     this.model.internalModel.motionManager.stopAllMotions();
   }
 

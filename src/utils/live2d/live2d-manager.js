@@ -319,6 +319,40 @@ export class Live2DManager {
   }
 
   /**
+   * Play a motion on loop — re-triggers the motion automatically each time it
+   * finishes until stopMotionLoop() is called.
+   * @param {string} modelId  - Model ID
+   * @param {string} group    - Motion group name
+   * @param {number} index    - Motion index within the group
+   * @param {number} priority - Playback priority (default 2 = NORMAL)
+   */
+  async playMotionLoop(modelId, group, index, priority = 2) {
+    return this.animationManager.playMotionLoop(
+      modelId,
+      group,
+      index,
+      priority,
+    );
+  }
+
+  /**
+   * Stop the motion loop for a model.
+   * @param {string} modelId - Model ID
+   */
+  stopMotionLoop(modelId) {
+    return this.animationManager.stopMotionLoop(modelId);
+  }
+
+  /**
+   * Check whether a motion loop is currently active for a model.
+   * @param {string} modelId - Model ID
+   * @returns {boolean}
+   */
+  isMotionLooping(modelId) {
+    return this.animationManager.isLooping(modelId);
+  }
+
+  /**
    * Play a random motion
    */
   async playRandomMotion(modelId, group = null) {

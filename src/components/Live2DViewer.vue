@@ -125,6 +125,22 @@ export default {
             try {
                 log("Starting Live2D manager initialization...", "debug");
 
+                // Disable pixi-live2d's built-in audio engine before any model
+                // is loaded.  Every call to motionManager.startMotion() creates
+                // a new AudioContext + AnalyserNode when sound is enabled — those
+                // are never closed per-motion, so the browser's AudioContext limit
+                // (~6) is hit quickly, after which the Web Audio scheduler stalls
+                // the main thread and causes the lag/framedrop seen on repeated
+                // motion plays.  Audio is handled separately by ModelSettings.vue.
+                if (window.PIXI?.live2d?.config) {
+                    window.PIXI.live2d.config.sound = false;
+                    window.PIXI.live2d.config.motionSync = false;
+                    log(
+                        "🔇 pixi-live2d built-in sound disabled (audio handled externally)",
+                        "debug",
+                    );
+                }
+
                 // Create Live2D manager instance
                 live2dManager = new Live2DManager(viewerContainer.value);
 

@@ -533,6 +533,34 @@
                                     </n-button>
                                     <n-button
                                         size="tiny"
+                                        :type="
+                                            motionLoop ? 'warning' : 'default'
+                                        "
+                                        @click.stop="toggleMotionLoop"
+                                        :disabled="
+                                            Object.keys(motions).length === 0
+                                        "
+                                        style="margin-left: 4px"
+                                        :title="
+                                            motionLoop
+                                                ? 'Loop ON — click to disable'
+                                                : 'Loop OFF — click to enable'
+                                        "
+                                    >
+                                        <template #icon>
+                                            <n-icon>
+                                                <svg viewBox="0 0 24 24">
+                                                    <path
+                                                        fill="currentColor"
+                                                        d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"
+                                                    />
+                                                </svg>
+                                            </n-icon>
+                                        </template>
+                                        Loop
+                                    </n-button>
+                                    <n-button
+                                        size="tiny"
                                         type="error"
                                         @click.stop="stopCurrentMotion"
                                         :disabled="!isMotionPlaying"
@@ -573,22 +601,51 @@
                                         justify="space-between"
                                     >
                                         <div>
-                                            <div
-                                                style="
-                                                    font-size: 13px;
-                                                    font-weight: 500;
-                                                    color: var(--n-info-color);
-                                                "
+                                            <n-space
+                                                align="center"
+                                                size="small"
                                             >
-                                                Playing:
-                                                {{ currentPlayingMotion.name }}
-                                            </div>
+                                                <div
+                                                    style="
+                                                        font-size: 13px;
+                                                        font-weight: 500;
+                                                        color: var(
+                                                            --n-info-color
+                                                        );
+                                                    "
+                                                >
+                                                    Playing:
+                                                    {{
+                                                        currentPlayingMotion.name
+                                                    }}
+                                                </div>
+                                                <n-tag
+                                                    v-if="motionLoop"
+                                                    size="tiny"
+                                                    type="warning"
+                                                >
+                                                    <template #icon>
+                                                        <n-icon>
+                                                            <svg
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    fill="currentColor"
+                                                                    d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"
+                                                                />
+                                                            </svg>
+                                                        </n-icon>
+                                                    </template>
+                                                    Loop
+                                                </n-tag>
+                                            </n-space>
                                             <div
                                                 style="
                                                     font-size: 11px;
                                                     color: var(
                                                         --n-text-color-disabled
                                                     );
+                                                    margin-top: 2px;
                                                 "
                                             >
                                                 {{ currentPlayingMotion.group }}
@@ -1050,6 +1107,10 @@ export default {
         // Motion playback state management
         const isMotionPlaying = ref(false);
         const currentPlayingMotion = ref(null);
+        const motionLoop = ref(false);
+        // Guard flag: prevents a second playMotion call from firing while
+        // a stop→rAF→start sequence is already in flight.
+        let _motionBusy = false;
 
         // Extended state management
         const currentExpression = ref(null);
@@ -1636,25 +1697,26 @@ export default {
             syncSettingsToStore();
         };
 
-        // Motion playback method - optimized, removed redundant checks
+        // Motion playback method
         const playMotion = (group, index, motion) => {
             if (!currentHeroModel.value) return;
 
-            // Stop current motion and audio
-            if (isMotionPlaying.value) {
-                currentHeroModel.value.model.stopMotions();
+            // Prevent concurrent calls while a play is already in progress.
+            if (_motionBusy) return;
+            _motionBusy = true;
+
+            const manager = live2dStore?.manager;
+            const modelId = live2dStore?.currentModel?.id;
+
+            // Stop any active loop first
+            if (manager && modelId) {
+                manager.stopMotionLoop(modelId);
             }
+
+            // Stop motion audio
             stopMotionAudio();
 
-            // Play new motion
-            currentHeroModel.value.playMotion(group, index);
-
-            // Play associated audio if enabled
-            if (modelSettings.enableAudio) {
-                playMotionAudio(group, index, motion);
-            }
-
-            // Update state
+            // Update UI state immediately
             isMotionPlaying.value = true;
             currentPlayingMotion.value = {
                 group,
@@ -1663,10 +1725,62 @@ export default {
                 name: motion?.Text || `${group}_${index}`,
             };
 
+            // HeroModel.playMotion now atomically calls stopAllMotions(),
+            // force-clears queueManager._motions, resets MotionState, and
+            // pre-loads the cached motion before issuing startMotion — so
+            // no rAF delay is needed here.
+            if (motionLoop.value && manager && modelId) {
+                // Loop mode: delegate to AnimationManager loop
+                manager.playMotionLoop(modelId, group, index).finally(() => {
+                    _motionBusy = false;
+                });
+            } else {
+                currentHeroModel.value.playMotion(group, index).finally(() => {
+                    _motionBusy = false;
+                });
+            }
+
+            // Play associated audio if enabled
+            if (modelSettings.enableAudio) {
+                playMotionAudio(group, index, motion);
+            }
+
             message.success(
-                `Playing motion: ${currentPlayingMotion.value.name}`,
+                `Playing motion: ${currentPlayingMotion.value?.name ?? `${group}_${index}`}`,
             );
             syncSettingsToStore();
+        };
+
+        // Toggle motion loop on/off
+        const toggleMotionLoop = () => {
+            motionLoop.value = !motionLoop.value;
+
+            const manager = live2dStore?.manager;
+            const modelId = live2dStore?.currentModel?.id;
+
+            if (!motionLoop.value) {
+                // Turning loop OFF — stop the active loop
+                if (manager && modelId) {
+                    manager.stopMotionLoop(modelId);
+                }
+                message.info("Motion loop disabled");
+            } else {
+                // Turning loop ON — if a motion is already playing, restart it in loop mode
+                if (
+                    currentPlayingMotion.value &&
+                    currentHeroModel.value &&
+                    manager &&
+                    modelId
+                ) {
+                    const { group, index } = currentPlayingMotion.value;
+                    manager.playMotionLoop(modelId, group, index);
+                    message.success("Motion loop enabled");
+                } else {
+                    message.info(
+                        "Motion loop enabled — select a motion to start looping",
+                    );
+                }
+            }
         };
 
         // Current audio player instance for motion audio
@@ -1852,10 +1966,21 @@ export default {
         const stopCurrentMotion = () => {
             if (!currentHeroModel.value) return;
 
+            // Also clear the busy flag so the next playMotion is not blocked
+            _motionBusy = false;
+
+            // Stop loop if active
+            const manager = live2dStore?.manager;
+            const modelId = live2dStore?.currentModel?.id;
+            if (manager && modelId) {
+                manager.stopMotionLoop(modelId);
+            }
+
             currentHeroModel.value.model.stopMotions();
             stopMotionAudio();
             isMotionPlaying.value = false;
             currentPlayingMotion.value = null;
+            motionLoop.value = false;
 
             message.success("Motion stopped");
             syncSettingsToStore();
@@ -2366,6 +2491,9 @@ export default {
         });
 
         // Basic methods
+        // Expose motionLoop and toggleMotionLoop to template
+        // (they are already in scope via defineComponent setup return below)
+
         const goBack = () => {
             emit("back");
         };
@@ -2437,6 +2565,8 @@ export default {
         };
 
         return {
+            motionLoop,
+            toggleMotionLoop,
             // Reactive data
             currentModel,
             currentHeroModel,
