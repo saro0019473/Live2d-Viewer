@@ -159,6 +159,14 @@ export class HeroModel {
         this.cubismModelSettings,
       );
 
+      // Disable pixi-live2d's built-in autoFocus (globalpointermove handler)
+      // so that mouse-follow is fully controlled by our own interaction manager.
+      // autoFocus=true is the pixi-live2d default and it bypasses our
+      // lookAtMouseEnabled flag, causing the model to always follow the mouse.
+      if (this.model.automator) {
+        this.model.automator.autoFocus = false;
+      }
+
       // Verify model instance
       if (!this.model) {
         throw new Error("Model creation failed: model instance is null");
@@ -540,11 +548,26 @@ export class HeroModel {
    * @param {boolean} bool - Whether to follow mouse
    */
   setLookatMouse = withModelCheck(function (bool) {
-    this.model.focusing = bool;
+    // Mouse-follow is driven entirely by pixi-live2d's built-in autoFocus
+    // mechanism.  When autoFocus=true, pixi-live2d registers a
+    // globalpointermove listener that calls focus() with the correct PIXI
+    // global pixel coordinates.  We simply toggle that flag rather than
+    // trying to replicate the same logic ourselves with DOM coordinates.
+    if (this.model.automator) {
+      this.model.automator.autoFocus = bool;
+    }
 
     if (!bool) {
-      // Reset gaze to center position
-      this.model.focus(this.model.x, this.model.y);
+      // Reset the focusController so the head returns to its neutral /
+      // motion-driven position instead of staying locked on the last cursor
+      // point.  Pass immediate=true (third arg) to snap instantly.
+      if (this.model.internalModel?.focusController) {
+        try {
+          this.model.internalModel.focusController.focus(0, 0, true);
+        } catch (_) {
+          // focusController API may differ across versions — ignore errors
+        }
+      }
     }
   }, "set gaze tracking");
 
@@ -595,12 +618,20 @@ export class HeroModel {
         return false;
       }
 
-      // If the motion is not an idle motion, automatically switch to a random idle motion after playback ends
-      // if (group !== "idle") {
-      //   motionManager.once("motionFinish", () => {
-      //     this.playRandomMotion("idle");
-      //   });
-      // }
+      // ── Fix: reset state before starting a new motion ──────────────
+      // pixi-live2d's MotionState.reserve() rejects a motion call when
+      // the same (group, index) pair is already recorded as "current".
+      // After a motion finishes the state is only cleared on the *next*
+      // update() tick, so a rapid replay of the same motion is silently
+      // rejected → the motion never starts, or starts with stale queue
+      // entries that cause visible framedrop / slow-motion on the 2nd+
+      // play.
+      //
+      // Calling stopAllMotions() clears the internal _motions queue and
+      // resets MotionState (currentGroup, currentIndex, priorities) so
+      // the subsequent startMotion() is guaranteed to pass reserve().
+      // ───────────────────────────────────────────────────────────────
+      motionManager.stopAllMotions();
 
       const success = await motionManager.startMotion(group, index);
 
@@ -781,6 +812,7 @@ export class HeroModel {
     ) {
       return;
     }
+
     this.model.internalModel.motionManager.stopAllMotions();
   }
 

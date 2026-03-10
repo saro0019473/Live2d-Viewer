@@ -15,6 +15,11 @@ export class Live2DAnimationManager {
     this.audioEnabled = true; // Whether audio playback is enabled
     this.audioVolume = 1.0; // Default audio volume
     this.logger = createLogger("Live2DAnimationManager");
+
+    // Motion loop state: Map<modelId, { group, index, active }>
+    // Uses CubismMotion._isLoop (native SDK loop) — no event listeners or
+    // fallback timers needed; the SDK handles iteration internally.
+    this._loopState = new Map();
   }
 
   /**
@@ -33,6 +38,170 @@ export class Live2DAnimationManager {
       this.stopAudio();
     }
   }
+
+  // ── Motion Loop API ──────────────────────────────────────────────────────
+
+  /**
+   * Start looping a specific motion for a model.
+   *
+   * Relies on the `motionFinish` event emitted by pixi-live2d's MotionManager
+   * (confirmed present in cubism4.min.js).  When the event fires, the next
+   * iteration is started via HeroModel.playMotion which now atomically clears
+   * the queueManager._motions array before each startMotion call — so there
+   * is no accumulation of stale entries and no progressive lag.
+   *
+   * Only ONE loop entry per model is ever active at a time.
+   *
+   * @param {string} modelId  - Model ID
+   * @param {string} group    - Motion group name
+   * @param {number} index    - Motion index within the group
+   */
+  async playMotionLoop(modelId, group, index) {
+    // Always replace any prior loop for this model
+    this.stopMotionLoop(modelId);
+
+    const heroModel = this.modelManager.getModel(modelId);
+    if (!heroModel) {
+      this.logger.warn("⚠️ [Loop] Model not found:", modelId);
+      return false;
+    }
+
+    const motionManager = heroModel.model?.internalModel?.motionManager;
+    if (!motionManager) {
+      this.logger.warn("⚠️ [Loop] motionManager not available:", modelId);
+      return false;
+    }
+
+    this.logger.log(
+      `🔁 [Loop] Starting native motion loop: ${modelId} → ${group}_${index}`,
+    );
+
+    // ── Native SDK Loop Strategy ─────────────────────────────────────────
+    //
+    // CubismSdkForWeb-5-r.4 source (cubismmotion.ts / acubismmotion.ts)
+    // confirms that CubismMotion has a built-in `_isLoop` flag:
+    //
+    //   setIsLoop(loop: boolean)  /  isLoop(): boolean
+    //
+    // When `_isLoop === true`, `doUpdateParameters()` wraps time modulo the
+    // motion duration and NEVER calls `motionQueueEntry.setIsFinished(true)`.
+    // The motion runs indefinitely inside the SDK render loop — no external
+    // event listeners, no stopAllMotions() per-iteration, no fallback timers.
+    //
+    // In cubism4.min.js the class is minified as `nt`.  The methods are
+    // still named `setIsLoop` / `isLoop` (confirmed in minified source).
+    //
+    // The cached motion objects live in:
+    //   motionManager.motionGroups[group][index]   (populated by loadMotion)
+    //
+    // Strategy:
+    //   1. Call heroModel.playMotion() to start the motion (this also resets
+    //      MotionState via stopAllMotions() so reserve() will pass).
+    //   2. After playMotion resolves successfully, find the CubismMotion
+    //      object from motionGroups[group][index] and call setIsLoop(true).
+    //   3. To stop: call setIsLoop(false) on the motion object, then
+    //      stopAllMotions() so the idle motion can resume normally.
+    //
+    // ─────────────────────────────────────────────────────────────────────
+
+    // Step 1 — start the motion via the normal path
+    const success = await heroModel.playMotion(group, index);
+    if (!success) {
+      this.logger.warn(
+        `⚠️ [Loop] playMotion returned false for ${group}_${index}, cannot start loop`,
+      );
+      return false;
+    }
+
+    // Step 2 — enable native loop on the CubismMotion object
+    const motionObj = motionManager.motionGroups?.[group]?.[index];
+    if (motionObj && typeof motionObj.setIsLoop === "function") {
+      motionObj.setIsLoop(true);
+      this.logger.log(
+        `✅ [Loop] Native _isLoop=true set on CubismMotion ${group}_${index}`,
+      );
+    } else {
+      // Fallback: motionGroups entry not yet populated (async load still in
+      // flight) — try once after a short delay, then give up gracefully.
+      this.logger.warn(
+        `⚠️ [Loop] motionGroups[${group}][${index}] not ready yet, retrying in 150ms`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const motionObjRetry = motionManager.motionGroups?.[group]?.[index];
+      if (motionObjRetry && typeof motionObjRetry.setIsLoop === "function") {
+        motionObjRetry.setIsLoop(true);
+        this.logger.log(
+          `✅ [Loop] Native _isLoop=true set on CubismMotion ${group}_${index} (retry)`,
+        );
+      } else {
+        this.logger.warn(
+          `⚠️ [Loop] Could not set native loop on ${group}_${index} — motionGroups entry missing`,
+        );
+        // Even without native loop the motion played once; treat as non-loop
+        return false;
+      }
+    }
+
+    // Register loop state so isLooping() / getLoopInfo() / stopMotionLoop() work
+    this._loopState.set(modelId, { group, index, active: true });
+    return true;
+  }
+
+  /**
+   * Stop the motion loop for a model and clean up all listeners/timers.
+   * @param {string} modelId - Model ID
+   */
+  stopMotionLoop(modelId) {
+    const loopEntry = this._loopState.get(modelId);
+    if (!loopEntry) return;
+
+    loopEntry.active = false;
+    this._loopState.delete(modelId);
+
+    // Disable native SDK loop on the CubismMotion object so the motion
+    // finishes naturally on the next cycle and the idle motion can resume.
+    const heroModel = this.modelManager.getModel(modelId);
+    if (heroModel) {
+      const motionManager = heroModel.model?.internalModel?.motionManager;
+      if (motionManager) {
+        const motionObj =
+          motionManager.motionGroups?.[loopEntry.group]?.[loopEntry.index];
+        if (motionObj && typeof motionObj.setIsLoop === "function") {
+          motionObj.setIsLoop(false);
+          this.logger.log(
+            `⏹️ [Loop] Native _isLoop=false on ${loopEntry.group}_${loopEntry.index}`,
+          );
+        }
+        // Stop immediately so the idle motion resumes without waiting for the
+        // current cycle to finish (matches previous behaviour).
+        motionManager.stopAllMotions();
+      }
+    }
+
+    this.logger.log(`⏹️ [Loop] Motion loop stopped: ${modelId}`);
+  }
+
+  /**
+   * Check whether a motion loop is currently active for a model.
+   * @param {string} modelId - Model ID
+   * @returns {boolean}
+   */
+  isLooping(modelId) {
+    return this._loopState.has(modelId) && this._loopState.get(modelId).active;
+  }
+
+  /**
+   * Get the current loop info for a model, or null if not looping.
+   * @param {string} modelId - Model ID
+   * @returns {{ group: string, index: number } | null}
+   */
+  getLoopInfo(modelId) {
+    const entry = this._loopState.get(modelId);
+    if (!entry || !entry.active) return null;
+    return { group: entry.group, index: entry.index };
+  }
+
+  // ── Standard Motion API ──────────────────────────────────────────────────
 
   /**
    * Play model motion
@@ -53,6 +222,9 @@ export class Live2DAnimationManager {
       const adjustedPriority = this.isPetMode
         ? Math.min(priority, 1)
         : priority;
+
+      // Starting a manual one-shot play stops any active loop
+      this.stopMotionLoop(modelId);
 
       const result = await heroModel.playMotion(group, index, adjustedPriority);
       this.logger.log("🎭 Playing motion:", {
@@ -395,6 +567,11 @@ export class Live2DAnimationManager {
    * Stop all animations
    */
   stopAllAnimations() {
+    // Stop all active loops first — snapshot keys to avoid mutation-during-iteration
+    for (const modelId of [...this._loopState.keys()]) {
+      this.stopMotionLoop(modelId);
+    }
+
     this.modelManager.getAllModels().forEach((heroModel) => {
       try {
         if (heroModel.stopAllMotions) {
@@ -416,6 +593,7 @@ export class Live2DAnimationManager {
     this.stopAllAnimations();
     this.animationQueue.clear();
     this.isPlaying.clear();
+    this._loopState.clear();
     this.logger.log("🧹 Animation manager destroyed");
   }
 }

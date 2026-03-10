@@ -14,6 +14,9 @@ export class Live2DInteractionManager {
 
     // Interaction configuration
     this.isEnabled = true;
+    // isDragEnabled controls ONLY model dragging (moving the model with pointer).
+    // Disabling drag does NOT disable click events or mouse-follow.
+    this.isDragEnabled = true;
     this.isDesktopMode = false;
     this.zoomSettings = {
       enabled: true,
@@ -24,9 +27,14 @@ export class Live2DInteractionManager {
 
     // Event state
     this.isDragging = false;
+    this.hasDragged = false;
     this.dragStartPos = { x: 0, y: 0 };
     this.dragStartModelPos = { x: 0, y: 0 };
+    this.dragModelId = null;
     this.clickThreshold = 5; // Click detection threshold (pixels)
+
+    // Mouse follow state
+    this.lookAtMouseEnabled = false;
 
     // Mouse tracking state
     this.mousePosition = { x: 0, y: 0 };
@@ -69,10 +77,14 @@ export class Live2DInteractionManager {
       }
     };
 
+    const globalMouseMoveHandler = (event) => {
+      this.handleGlobalMouseMove(event);
+    };
+
     globalResourceManager.registerGlobalEventListener(
-      "interaction-resize",
-      "resize",
-      resizeHandler,
+      "interaction-mousemove",
+      "mousemove",
+      globalMouseMoveHandler,
     );
 
     // Wheel zoom listener is now managed uniformly by setWheelZoomEnabled
@@ -262,6 +274,9 @@ export class Live2DInteractionManager {
     pixiModel.interactive = true;
     // PIXI 7.x: use cursor instead of buttonMode
     pixiModel.cursor = "pointer";
+    if (typeof pixiModel.eventMode !== "undefined") {
+      pixiModel.eventMode = "dynamic";
+    }
 
     // Pointer down event
     const pointerDownHandler = (event) => {
@@ -331,12 +346,26 @@ export class Live2DInteractionManager {
    * @param {Object} event - Event object
    */
   handlePointerDown(modelId, event) {
+    if (!this.isEnabled) return;
+
     const model = this.modelManager.getModel(modelId);
     if (!model) return;
 
-    this.isDragging = true;
-    this.dragStartPos = { x: event.data.global.x, y: event.data.global.y };
-    this.dragStartModelPos = model.getPosition();
+    // Only start drag tracking when drag is enabled
+    if (this.isDragEnabled) {
+      this.isDragging = true;
+      this.hasDragged = false;
+      this.dragModelId = modelId;
+      this.dragStartPos = { x: event.data.global.x, y: event.data.global.y };
+      this.dragStartModelPos = model.getPosition();
+    } else {
+      // Still track pointer down position for click detection even when drag is off
+      this.isDragging = false;
+      this.hasDragged = false;
+      this.dragModelId = modelId;
+      this.dragStartPos = { x: event.data.global.x, y: event.data.global.y };
+      this.dragStartModelPos = model.getPosition();
+    }
   }
 
   /**
@@ -345,25 +374,27 @@ export class Live2DInteractionManager {
    * @param {Object} event - Event object
    */
   handlePointerMove(modelId, event) {
-    if (!this.isDragging) return;
+    if (!this.isEnabled) return;
 
-    const model = this.modelManager.getModel(modelId);
-    if (!model) return;
+    // Only move the model when drag is enabled and actively dragging
+    if (this.isDragEnabled && this.isDragging && this.dragModelId === modelId) {
+      const model = this.modelManager.getModel(modelId);
+      if (!model) return;
 
-    const currentPos = { x: event.data.global.x, y: event.data.global.y };
-    const deltaX = currentPos.x - this.dragStartPos.x;
-    const deltaY = currentPos.y - this.dragStartPos.y;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      const currentPos = { x: event.data.global.x, y: event.data.global.y };
+      const deltaX = currentPos.x - this.dragStartPos.x;
+      const deltaY = currentPos.y - this.dragStartPos.y;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    // If movement distance exceeds threshold, start dragging
-    if (distance > this.clickThreshold && !this.isDragging) {
-      this.isDragging = true;
-    }
+      if (distance > this.clickThreshold) {
+        this.hasDragged = true;
+      }
 
-    if (this.isDragging) {
-      const newX = this.dragStartModelPos.x + deltaX;
-      const newY = this.dragStartModelPos.y + deltaY;
-      model.setPosition(newX, newY);
+      if (this.hasDragged) {
+        const newX = this.dragStartModelPos.x + deltaX;
+        const newY = this.dragStartModelPos.y + deltaY;
+        model.setPosition(newX, newY);
+      }
     }
   }
 
@@ -373,22 +404,38 @@ export class Live2DInteractionManager {
    * @param {Object} event - Event object
    */
   handlePointerUp(modelId, event) {
+    if (!this.isEnabled) {
+      this.isDragging = false;
+      this.hasDragged = false;
+      this.dragModelId = null;
+      return;
+    }
+
     const model = this.modelManager.getModel(modelId);
-    if (!model) return;
+    if (!model) {
+      this.isDragging = false;
+      this.hasDragged = false;
+      this.dragModelId = null;
+      return;
+    }
 
     const currentPos = { x: event.data.global.x, y: event.data.global.y };
     const deltaX = currentPos.x - this.dragStartPos.x;
     const deltaY = currentPos.y - this.dragStartPos.y;
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    // If movement distance is less than threshold, treat as click
-    if (distance < this.clickThreshold) {
+    // Only treat as click if no drag occurred (works whether drag is enabled or not)
+    if (
+      this.dragModelId === modelId &&
+      !this.hasDragged &&
+      distance < this.clickThreshold
+    ) {
       this.handleModelClick(modelId, event);
     }
 
-    if (this.isDragging) {
-      this.isDragging = false;
-    }
+    this.isDragging = false;
+    this.hasDragged = false;
+    this.dragModelId = null;
   }
 
   /**
@@ -522,6 +569,17 @@ export class Live2DInteractionManager {
     this.clickAreas.delete(modelId);
   }
 
+  handleGlobalMouseMove(event) {
+    // Only track mouse position for other uses (e.g. desktop mode layout).
+    // Mouse-follow / head-gaze is handled entirely by pixi-live2d's built-in
+    // autoFocus mechanism (model.automator.autoFocus), which is toggled by
+    // setLookAtMouseEnabled().  Calling model.focus() here with DOM
+    // clientX/clientY coordinates was incorrect because pixi-live2d's focus()
+    // expects PIXI global pixel coordinates (event.global.x/y), not
+    // canvas-relative DOM coordinates, causing wrong gaze direction.
+    this.mousePosition = { x: event.clientX, y: event.clientY };
+  }
+
   /**
    * Clean up model event listeners
    * @param {string} modelId - Model ID
@@ -637,15 +695,55 @@ export class Live2DInteractionManager {
    * Set interaction enabled state
    * @param {boolean} enabled - Whether to enable
    */
+  /**
+   * Set drag enabled state — controls ONLY whether the model can be moved by
+   * dragging.  Pointer events on the model remain active so that click
+   * interactions and mouse-follow continue to work regardless of this flag.
+   * @param {boolean} enabled - Whether model dragging is allowed
+   */
+  setDragEnabled(enabled) {
+    this.isDragEnabled = enabled;
+
+    if (!enabled) {
+      // Cancel any drag that may be in progress
+      this.isDragging = false;
+      this.hasDragged = false;
+      this.dragModelId = null;
+    }
+
+    this.logger.log(`🖱️ Model dragging ${enabled ? "enabled" : "disabled"}`);
+  }
+
+  /**
+   * Set overall interaction enabled state.
+   * When disabled the model receives no pointer events at all (no drag, no
+   * click, no hover).  Mouse-follow via the global mousemove listener is NOT
+   * affected — that is controlled separately by setLookAtMouseEnabled().
+   * @param {boolean} enabled - Whether to enable pointer interactions
+   */
   setInteractionEnabled(enabled) {
     this.isEnabled = enabled;
 
-    // Update interaction state for all models
+    if (!enabled) {
+      this.isDragging = false;
+      this.hasDragged = false;
+      this.dragModelId = null;
+    }
+
+    // Update PIXI event mode for all models.
+    // We keep the model's eventMode as "dynamic" when interaction is disabled
+    // so that the global mousemove can still reach pixi-live2d's focus() logic.
+    // Only the isEnabled flag gates the drag / click handlers above.
     const models = this.modelManager.getAllModels();
     models.forEach((model) => {
       if (model.model) {
         model.model.interactive = enabled;
         model.model.cursor = enabled ? "pointer" : null;
+        if (typeof model.model.eventMode !== "undefined") {
+          // Keep "dynamic" so the PIXI stage still dispatches pointer events
+          // for mouse-follow even when interaction (drag/click) is disabled.
+          model.model.eventMode = enabled ? "dynamic" : "none";
+        }
       }
     });
   }
@@ -684,6 +782,41 @@ export class Live2DInteractionManager {
    */
   getZoomSettings() {
     return { ...this.zoomSettings };
+  }
+
+  /**
+   * Set mouse-follow enabled state
+   * @param {boolean} enabled - Whether the model should follow mouse movement
+   */
+  setLookAtMouseEnabled(enabled) {
+    this.lookAtMouseEnabled = enabled;
+
+    // Mouse-follow is implemented via pixi-live2d's built-in autoFocus
+    // (model.automator.autoFocus).  When autoFocus=true pixi-live2d registers
+    // a globalpointermove listener that calls focus() with the correct PIXI
+    // global coordinates.  We simply toggle that flag here instead of trying
+    // to replicate the same logic manually with DOM coordinates.
+    const models = this.modelManager.getAllModels();
+    models.forEach((model) => {
+      if (!model?.model) return;
+
+      // Toggle pixi-live2d's built-in autoFocus.
+      if (model.model.automator) {
+        model.model.automator.autoFocus = enabled;
+      }
+
+      if (!enabled) {
+        // Reset the focusController so the head returns to neutral / motion
+        // driven position instead of staying locked on the last cursor point.
+        if (model.model.internalModel?.focusController) {
+          try {
+            model.model.internalModel.focusController.focus(0, 0, true);
+          } catch (_) {
+            // API may differ across pixi-live2d versions — silently ignore
+          }
+        }
+      }
+    });
   }
 }
 

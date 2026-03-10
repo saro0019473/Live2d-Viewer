@@ -67,3 +67,5 @@ Thumbs.db
 *.tar.gz
 
 # *.ogg
+/context
+/doc

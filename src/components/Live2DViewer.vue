@@ -125,6 +125,22 @@ export default {
             try {
                 log("Starting Live2D manager initialization...", "debug");
 
+                // Disable pixi-live2d's built-in audio engine before any model
+                // is loaded.  Every call to motionManager.startMotion() creates
+                // a new AudioContext + AnalyserNode when sound is enabled — those
+                // are never closed per-motion, so the browser's AudioContext limit
+                // (~6) is hit quickly, after which the Web Audio scheduler stalls
+                // the main thread and causes the lag/framedrop seen on repeated
+                // motion plays.  Audio is handled separately by ModelSettings.vue.
+                if (window.PIXI?.live2d?.config) {
+                    window.PIXI.live2d.config.sound = false;
+                    window.PIXI.live2d.config.motionSync = false;
+                    log(
+                        "🔇 pixi-live2d built-in sound disabled (audio handled externally)",
+                        "debug",
+                    );
+                }
+
                 // Create Live2D manager instance
                 live2dManager = new Live2DManager(viewerContainer.value);
 
@@ -514,11 +530,29 @@ export default {
                         ? Boolean(settings.eyeBlinking)
                         : true,
                 );
-                heroModel.setInteractive(
-                    settings.interactive !== undefined
-                        ? Boolean(settings.interactive)
-                        : true,
-                );
+                // Apply drag setting — controls ONLY whether the model can be
+                // moved by dragging, NOT click or mouse-follow interactions.
+                if (live2dManager) {
+                    const dragEnabled =
+                        settings.interactive !== undefined
+                            ? Boolean(settings.interactive)
+                            : true;
+                    if (typeof live2dManager.setDragEnabled === "function") {
+                        live2dManager.setDragEnabled(dragEnabled);
+                    } else if (live2dManager.interactionManager) {
+                        live2dManager.interactionManager.setDragEnabled(
+                            dragEnabled,
+                        );
+                    }
+                }
+
+                // Apply mouse-follow setting independently of drag
+                if (
+                    live2dManager &&
+                    typeof settings.lookAtMouse === "boolean"
+                ) {
+                    live2dManager.setLookAtMouseEnabled(settings.lookAtMouse);
+                }
 
                 // Apply interaction settings
                 if (live2dManager && typeof settings.wheelZoom === "boolean") {

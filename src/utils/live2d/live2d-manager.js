@@ -319,6 +319,40 @@ export class Live2DManager {
   }
 
   /**
+   * Play a motion on loop — re-triggers the motion automatically each time it
+   * finishes until stopMotionLoop() is called.
+   * @param {string} modelId  - Model ID
+   * @param {string} group    - Motion group name
+   * @param {number} index    - Motion index within the group
+   * @param {number} priority - Playback priority (default 2 = NORMAL)
+   */
+  async playMotionLoop(modelId, group, index, priority = 2) {
+    return this.animationManager.playMotionLoop(
+      modelId,
+      group,
+      index,
+      priority,
+    );
+  }
+
+  /**
+   * Stop the motion loop for a model.
+   * @param {string} modelId - Model ID
+   */
+  stopMotionLoop(modelId) {
+    return this.animationManager.stopMotionLoop(modelId);
+  }
+
+  /**
+   * Check whether a motion loop is currently active for a model.
+   * @param {string} modelId - Model ID
+   * @returns {boolean}
+   */
+  isMotionLooping(modelId) {
+    return this.animationManager.isLooping(modelId);
+  }
+
+  /**
    * Play a random motion
    */
   async playRandomMotion(modelId, group = null) {
@@ -384,6 +418,49 @@ export class Live2DManager {
     if (this.interactionManager) {
       this.interactionManager.setInteractionEnabled(enabled);
       this.logger.log(`🖱️ Interaction ${enabled ? "enabled" : "disabled"}`);
+    }
+  }
+
+  /**
+   * Set model drag enabled state.
+   * Controls ONLY whether the model can be physically moved (dragged) by the
+   * user.  Pointer events, click interactions, and mouse-follow remain active
+   * regardless of this flag.
+   * @param {boolean} enabled - Whether model dragging is allowed
+   */
+  setDragEnabled(enabled) {
+    if (!this.interactionManager) {
+      this.logger.warn(
+        "Interaction manager not initialized, cannot set drag state",
+      );
+      return;
+    }
+
+    try {
+      this.interactionManager.setDragEnabled(enabled);
+      this.logger.log(`🖱️ Model dragging ${enabled ? "enabled" : "disabled"}`);
+    } catch (error) {
+      this.logger.error("Failed to set drag state:", error);
+    }
+  }
+
+  /**
+   * Set mouse-follow enabled state
+   * @param {boolean} enabled - Whether model should follow mouse
+   */
+  setLookAtMouseEnabled(enabled) {
+    if (!this.interactionManager) {
+      this.logger.warn(
+        "Interaction manager not initialized, cannot set mouse-follow",
+      );
+      return;
+    }
+
+    try {
+      this.interactionManager.setLookAtMouseEnabled(enabled);
+      this.logger.log(`👀 Mouse-follow ${enabled ? "enabled" : "disabled"}`);
+    } catch (error) {
+      this.logger.error("Failed to set mouse-follow state:", error);
     }
   }
 
