@@ -70,6 +70,7 @@ export const useLive2DStore = defineStore("live2d", () => {
       breathing: true,
       eyeBlinking: true,
       interactive: true,
+      lookAtMouse: false,
       // Extended settings
       wheelZoom: true,
       clickInteraction: true,
@@ -135,6 +136,7 @@ export const useLive2DStore = defineStore("live2d", () => {
         breathing: true,
         eyeBlinking: true,
         interactive: true,
+        lookAtMouse: false,
       });
       return;
     }
@@ -162,6 +164,7 @@ export const useLive2DStore = defineStore("live2d", () => {
         breathing: true,
         eyeBlinking: true,
         interactive: true,
+        lookAtMouse: false,
       });
     }
   };

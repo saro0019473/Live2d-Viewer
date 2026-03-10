@@ -530,11 +530,29 @@ export default {
                         ? Boolean(settings.eyeBlinking)
                         : true,
                 );
-                heroModel.setInteractive(
-                    settings.interactive !== undefined
-                        ? Boolean(settings.interactive)
-                        : true,
-                );
+                // Apply drag setting — controls ONLY whether the model can be
+                // moved by dragging, NOT click or mouse-follow interactions.
+                if (live2dManager) {
+                    const dragEnabled =
+                        settings.interactive !== undefined
+                            ? Boolean(settings.interactive)
+                            : true;
+                    if (typeof live2dManager.setDragEnabled === "function") {
+                        live2dManager.setDragEnabled(dragEnabled);
+                    } else if (live2dManager.interactionManager) {
+                        live2dManager.interactionManager.setDragEnabled(
+                            dragEnabled,
+                        );
+                    }
+                }
+
+                // Apply mouse-follow setting independently of drag
+                if (
+                    live2dManager &&
+                    typeof settings.lookAtMouse === "boolean"
+                ) {
+                    live2dManager.setLookAtMouseEnabled(settings.lookAtMouse);
+                }
 
                 // Apply interaction settings
                 if (live2dManager && typeof settings.wheelZoom === "boolean") {

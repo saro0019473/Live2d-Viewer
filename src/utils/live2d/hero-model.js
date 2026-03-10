@@ -159,6 +159,14 @@ export class HeroModel {
         this.cubismModelSettings,
       );
 
+      // Disable pixi-live2d's built-in autoFocus (globalpointermove handler)
+      // so that mouse-follow is fully controlled by our own interaction manager.
+      // autoFocus=true is the pixi-live2d default and it bypasses our
+      // lookAtMouseEnabled flag, causing the model to always follow the mouse.
+      if (this.model.automator) {
+        this.model.automator.autoFocus = false;
+      }
+
       // Verify model instance
       if (!this.model) {
         throw new Error("Model creation failed: model instance is null");
@@ -540,11 +548,26 @@ export class HeroModel {
    * @param {boolean} bool - Whether to follow mouse
    */
   setLookatMouse = withModelCheck(function (bool) {
-    this.model.focusing = bool;
+    // Mouse-follow is driven entirely by pixi-live2d's built-in autoFocus
+    // mechanism.  When autoFocus=true, pixi-live2d registers a
+    // globalpointermove listener that calls focus() with the correct PIXI
+    // global pixel coordinates.  We simply toggle that flag rather than
+    // trying to replicate the same logic ourselves with DOM coordinates.
+    if (this.model.automator) {
+      this.model.automator.autoFocus = bool;
+    }
 
     if (!bool) {
-      // Reset gaze to center position
-      this.model.focus(this.model.x, this.model.y);
+      // Reset the focusController so the head returns to its neutral /
+      // motion-driven position instead of staying locked on the last cursor
+      // point.  Pass immediate=true (third arg) to snap instantly.
+      if (this.model.internalModel?.focusController) {
+        try {
+          this.model.internalModel.focusController.focus(0, 0, true);
+        } catch (_) {
+          // focusController API may differ across versions — ignore errors
+        }
+      }
     }
   }, "set gaze tracking");
 

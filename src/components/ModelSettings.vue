@@ -57,7 +57,7 @@
             <div v-if="currentModel">
                 <n-scrollbar class="scrollable-content">
                     <!-- Use collapse panel to organize all settings -->
-                    <n-collapse default-expanded-names="display">
+                    <n-collapse>
                         <!-- Display Settings -->
                         <n-collapse-item
                             title="Display Settings"
@@ -168,20 +168,27 @@
                                         />
 
                                         <setting-switch
-                                            label="Model Dragging"
+                                            label="Mouse Follow"
                                             :model-value="
-                                                modelSettings.interactive
-                                            "
-                                            :updater="
-                                                (val) =>
-                                                    currentHeroModel?.setInteractive(
-                                                        val,
-                                                    )
+                                                modelSettings.lookAtMouse
                                             "
                                             @update:model-value="
-                                                (val) =>
-                                                    (modelSettings.interactive =
-                                                        val)
+                                                (value) => {
+                                                    modelSettings.lookAtMouse =
+                                                        value;
+                                                    if (
+                                                        live2dStore?.manager
+                                                            ?.setLookAtMouseEnabled
+                                                    ) {
+                                                        live2dStore.manager.setLookAtMouseEnabled(
+                                                            value,
+                                                        );
+                                                    }
+                                                    currentHeroModel?.setLookatMouse(
+                                                        value,
+                                                    );
+                                                    syncSettingsToStore();
+                                                }
                                             "
                                         />
 
@@ -264,13 +271,13 @@
                                         />
 
                                         <setting-switch
-                                            label="Mouse Interaction"
+                                            label="Model Dragging"
                                             :model-value="
-                                                modelSettings.clickInteraction
+                                                modelSettings.interactive
                                             "
                                             @update:model-value="
                                                 (value) => {
-                                                    modelSettings.clickInteraction =
+                                                    modelSettings.interactive =
                                                         value;
                                                     updateClickInteraction();
                                                 }
@@ -1125,6 +1132,7 @@ export default {
             breathing: true,
             eyeBlinking: true,
             interactive: true,
+            lookAtMouse: false,
             // Interaction settings
             wheelZoom: true,
             clickInteraction: true,
@@ -1281,6 +1289,7 @@ export default {
                     breathing: modelSettings.breathing,
                     eyeBlinking: modelSettings.eyeBlinking,
                     interactive: modelSettings.interactive,
+                    lookAtMouse: modelSettings.lookAtMouse,
                     wheelZoom: modelSettings.wheelZoom,
                     clickInteraction: modelSettings.clickInteraction,
                     zoomSettings: {
@@ -1352,6 +1361,7 @@ export default {
                 applySetting("breathing", modelSettings, settings);
                 applySetting("eyeBlinking", modelSettings, settings);
                 applySetting("interactive", modelSettings, settings);
+                applySetting("lookAtMouse", modelSettings, settings);
 
                 // Interaction settings
                 applySetting("wheelZoom", modelSettings, settings);
@@ -1442,8 +1452,29 @@ export default {
                         currentHeroModel.value.model.breathing;
                     modelSettings.eyeBlinking =
                         currentHeroModel.value.model.eyeBlinking;
-                    modelSettings.interactive =
-                        currentHeroModel.value.model.interactive;
+                    // "interactive" here represents Model Dragging — read it
+                    // from the interactionManager's isDragEnabled flag so that
+                    // it reflects the drag-only toggle, not the full pointer
+                    // interaction state (which would also gate mouse-follow).
+                    const interactionMgr =
+                        live2dStore?.manager?.interactionManager;
+                    if (interactionMgr !== undefined) {
+                        modelSettings.interactive =
+                            interactionMgr.isDragEnabled !== undefined
+                                ? interactionMgr.isDragEnabled
+                                : currentHeroModel.value.model.interactive;
+                    } else {
+                        modelSettings.interactive =
+                            currentHeroModel.value.model.interactive;
+                    }
+                    // Sync mouse-follow state from the interaction manager
+                    if (interactionMgr !== undefined) {
+                        modelSettings.lookAtMouse =
+                            interactionMgr.lookAtMouseEnabled === true;
+                    } else {
+                        modelSettings.lookAtMouse =
+                            currentHeroModel.value.model.focusing === true;
+                    }
                 }
 
                 // 3. Sync expressions
@@ -1536,6 +1567,7 @@ export default {
                         breathing: true,
                         eyeBlinking: true,
                         interactive: true,
+                        lookAtMouse: false,
                         // Interaction settings
                         wheelZoom: true,
                         clickInteraction: true,
@@ -1709,7 +1741,7 @@ export default {
             const modelId = live2dStore?.currentModel?.id;
 
             // Stop any active loop first
-            if (manager && modelId) {
+            if (motionLoop.value && manager && modelId) {
                 manager.stopMotionLoop(modelId);
             }
 
@@ -2049,19 +2081,22 @@ export default {
 
         const updateClickInteraction = () => {
             try {
-                // Directly call Live2D manager's interaction setting
-                if (live2dStore?.manager) {
-                    live2dStore.manager.setInteractionEnabled(
-                        modelSettings.clickInteraction,
+                // Model Dragging controls ONLY whether the model can be moved by
+                // dragging — it must NOT disable pointer events entirely, because
+                // that would also break mouse-follow and click interactions.
+                if (live2dStore?.manager?.interactionManager) {
+                    live2dStore.manager.interactionManager.setDragEnabled(
+                        modelSettings.interactive,
                     );
-                }
-
-                // Also update model interactivity state for coordination
-                if (currentHeroModel.value) {
-                    const shouldBeInteractive =
-                        modelSettings.interactive &&
-                        modelSettings.clickInteraction;
-                    currentHeroModel.value.setInteractive(shouldBeInteractive);
+                } else if (live2dStore?.manager) {
+                    // Fallback: if setDragEnabled is exposed directly on manager
+                    if (
+                        typeof live2dStore.manager.setDragEnabled === "function"
+                    ) {
+                        live2dStore.manager.setDragEnabled(
+                            modelSettings.interactive,
+                        );
+                    }
                 }
 
                 // Manually sync to Store to avoid duplicate calls
@@ -2069,14 +2104,14 @@ export default {
 
                 __DEV__ &&
                     console.debug(
-                        `[ModelSettings] Mouse interaction setting updated: ${modelSettings.clickInteraction}`,
+                        `[ModelSettings] Model dragging setting updated: ${modelSettings.interactive}`,
                     );
             } catch (error) {
                 console.error(
-                    "❌ [ModelSettings] Failed to update mouse interaction setting:",
+                    "❌ [ModelSettings] Failed to update model dragging setting:",
                     error,
                 );
-                message.error("Failed to update mouse interaction setting");
+                message.error("Failed to update model dragging setting");
             }
         };
 

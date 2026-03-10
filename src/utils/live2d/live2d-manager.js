@@ -422,6 +422,49 @@ export class Live2DManager {
   }
 
   /**
+   * Set model drag enabled state.
+   * Controls ONLY whether the model can be physically moved (dragged) by the
+   * user.  Pointer events, click interactions, and mouse-follow remain active
+   * regardless of this flag.
+   * @param {boolean} enabled - Whether model dragging is allowed
+   */
+  setDragEnabled(enabled) {
+    if (!this.interactionManager) {
+      this.logger.warn(
+        "Interaction manager not initialized, cannot set drag state",
+      );
+      return;
+    }
+
+    try {
+      this.interactionManager.setDragEnabled(enabled);
+      this.logger.log(`🖱️ Model dragging ${enabled ? "enabled" : "disabled"}`);
+    } catch (error) {
+      this.logger.error("Failed to set drag state:", error);
+    }
+  }
+
+  /**
+   * Set mouse-follow enabled state
+   * @param {boolean} enabled - Whether model should follow mouse
+   */
+  setLookAtMouseEnabled(enabled) {
+    if (!this.interactionManager) {
+      this.logger.warn(
+        "Interaction manager not initialized, cannot set mouse-follow",
+      );
+      return;
+    }
+
+    try {
+      this.interactionManager.setLookAtMouseEnabled(enabled);
+      this.logger.log(`👀 Mouse-follow ${enabled ? "enabled" : "disabled"}`);
+    } catch (error) {
+      this.logger.error("Failed to set mouse-follow state:", error);
+    }
+  }
+
+  /**
    * Set model position
    * @param {string} modelId - Model ID
    * @param {number} x - X coordinate
